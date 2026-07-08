@@ -1,0 +1,26 @@
+<article class="card">
+  <header class="card__header">
+    <h2>Server Health</h2>
+    <button type="button" aria-label="Server-health options">
+      <app-icon name="more" [size]="21" />
+    </button>
+  </header>
+
+  <div class="health-content">
+    <div class="health-stats">
+      <p><strong class="healthy">{{ healthy }}</strong><span>Healthy</span></p>
+      <p><strong class="warning">{{ warning }}</strong><span>Warn</span></p>
+      <p><strong class="down">{{ down }}</strong><span>Down</span></p>
+    </div>
+
+    <div
+      class="donut"
+      role="img"
+      [attr.aria-label]="healthy + ' healthy, ' + warning + ' warning, ' + down + ' down servers'"
+      [style.--healthy-percent]="healthyPercent + '%'"
+      [style.--warning-end]="(healthyPercent + warningPercent) + '%'"
+    >
+      <span>{{ total }}</span>
+    </div>
+  </div>
+</article>

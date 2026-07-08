@@ -1,0 +1,65 @@
+:root {
+  --color-navy-950: #071a4e;
+  --color-navy-900: #0b2d79;
+  --color-navy-800: #123f96;
+  --color-purple: #9824dc;
+  --color-orange: #ff8a20;
+  --color-teal: #12aaa9;
+  --color-red: #ef5350;
+  --color-text: #101828;
+  --color-muted: #667085;
+  --color-line: #dfe5ef;
+  --color-surface: #ffffff;
+  --color-page: #f4f7fb;
+
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+
+  --shadow-card:
+    0 1px 2px rgb(16 24 40 / 5%),
+    0 8px 24px rgb(16 24 40 / 8%);
+
+  --shadow-shell:
+    0 20px 55px rgb(15 35 80 / 16%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--color-text);
+  background:
+    radial-gradient(circle at 90% 10%, rgb(28 107 202 / 8%), transparent 26%),
+    linear-gradient(135deg, #fbfcfe, #edf2f8);
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}

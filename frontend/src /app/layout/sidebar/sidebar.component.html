@@ -1,0 +1,29 @@
+<aside
+  class="sidebar"
+  [class.sidebar--mobile-open]="mobileOpen"
+  aria-label="Primary navigation"
+>
+  <a class="brand" routerLink="/dashboard" (click)="navigate.emit()">
+    <span class="brand__mark" aria-hidden="true">
+      <i></i>
+      <i></i>
+      <i></i>
+    </span>
+    <span class="brand__name">LOAD<span>FLOW</span></span>
+  </a>
+
+  <nav class="sidebar__nav">
+    @for (item of navigation; track item.label) {
+      <a
+        class="nav-item"
+        [routerLink]="item.route"
+        routerLinkActive="nav-item--active"
+        [routerLinkActiveOptions]="{ exact: item.route === '/dashboard' }"
+        (click)="navigate.emit()"
+      >
+        <app-icon [name]="item.icon" [size]="22" />
+        <span>{{ item.label }}</span>
+      </a>
+    }
+  </nav>
+</aside>

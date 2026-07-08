@@ -1,0 +1,19 @@
+<article class="panel">
+  <header>
+    <h2>Recent Alerts & Logs</h2>
+    <span>{{ alerts.length }}</span>
+  </header>
+
+  <div class="timeline">
+    @for (alert of alerts; track $index) {
+      <div class="timeline__item" [class]="'timeline__item timeline__item--' + alert.tone">
+        <i class="timeline__dot"></i>
+        <div>
+          <strong>{{ alert.source }}</strong>
+          <p>{{ alert.message }}</p>
+        </div>
+        <span class="timeline__badge">!</span>
+      </div>
+    }
+  </div>
+</article>

@@ -1,0 +1,31 @@
+<article class="card">
+  <header class="card__header">
+    <h2>Active Pools</h2>
+    <button type="button" aria-label="Pool options">
+      <app-icon name="more" [size]="21" />
+    </button>
+  </header>
+
+  <strong class="pool-count">{{ activePools }} / {{ totalPools }}</strong>
+
+  <div
+    class="progress"
+    role="progressbar"
+    [attr.aria-valuenow]="activePools"
+    aria-valuemin="0"
+    [attr.aria-valuemax]="totalPools"
+  >
+    <span [style.width.%]="activePercentage"></span>
+  </div>
+
+  <div class="pool-details">
+    <div>
+      <strong>{{ bandwidth }}</strong>
+      <span>Bandwidth</span>
+    </div>
+    <div>
+      <strong class="purple">{{ trend }}</strong>
+      <span>Trend</span>
+    </div>
+  </div>
+</article>

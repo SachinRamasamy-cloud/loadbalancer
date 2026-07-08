@@ -1,0 +1,35 @@
+<section class="overview">
+  <header class="overview__header">
+    <div>
+      <p>Infrastructure monitoring</p>
+      <h1>Load Balancer Overview</h1>
+    </div>
+
+    <span class="live-indicator">
+      <i></i>
+      Live
+    </span>
+  </header>
+
+  <div class="summary-grid">
+    <app-global-status-card />
+    <app-traffic-metric-card [trafficGbps]="data.overview().trafficGbps" />
+    <app-active-pools-card
+      [activePools]="data.overview().activePools"
+      [totalPools]="data.overview().totalPools"
+      [bandwidth]="data.overview().bandwidth"
+      [trend]="data.overview().trend"
+    />
+    <app-server-health-card
+      [healthy]="data.overview().healthyServers"
+      [warning]="data.overview().warningServers"
+      [down]="data.overview().downServers"
+    />
+  </div>
+
+  <div class="detail-grid">
+    <app-traffic-chart [series]="data.overview().trafficSeries" />
+    <app-pools-table [rows]="data.overview().pools" />
+    <app-alerts-panel [alerts]="data.overview().alerts" />
+  </div>
+</section>

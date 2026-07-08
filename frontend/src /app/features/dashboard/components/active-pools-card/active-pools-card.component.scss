@@ -1,0 +1,71 @@
+.card {
+  min-height: 224px;
+  padding: 20px;
+  border: 1px solid #e4e9f1;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.card__header,
+.pool-details {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+button {
+  border: 0;
+  color: #7b879b;
+  background: transparent;
+}
+
+.pool-count {
+  display: block;
+  margin-top: 12px;
+  font-size: 32px;
+  letter-spacing: -0.04em;
+}
+
+.progress {
+  height: 11px;
+  margin: 14px 0 28px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e6e9f3;
+}
+
+.progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--color-orange) 0 82%, var(--color-purple) 82%);
+}
+
+.pool-details {
+  padding-top: 16px;
+  border-top: 1px solid var(--color-line);
+}
+
+.pool-details div {
+  display: grid;
+  gap: 2px;
+}
+
+.pool-details strong {
+  color: var(--color-teal);
+  font-size: 22px;
+}
+
+.pool-details strong.purple {
+  color: var(--color-purple);
+}
+
+.pool-details span {
+  font-size: 13px;
+}
