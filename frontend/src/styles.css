@@ -1,27 +1,16 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
-  --color-navy-950: #071a4e;
-  --color-navy-900: #0b2d79;
-  --color-navy-800: #123f96;
-  --color-purple: #9824dc;
-  --color-orange: #ff8a20;
-  --color-teal: #12aaa9;
-  --color-red: #ef5350;
-  --color-text: #101828;
-  --color-muted: #667085;
-  --color-line: #dfe5ef;
-  --color-surface: #ffffff;
-  --color-page: #f4f7fb;
-
-  --radius-sm: 10px;
-  --radius-md: 16px;
-  --radius-lg: 24px;
-
-  --shadow-card:
-    0 1px 2px rgb(16 24 40 / 5%),
-    0 8px 24px rgb(16 24 40 / 8%);
-
-  --shadow-shell:
-    0 20px 55px rgb(15 35 80 / 16%);
+  color-scheme: light;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #f5f7fb;
+  color: #172033;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
 }
 
 * {
@@ -30,23 +19,23 @@
 
 html,
 body {
+  min-width: 320px;
   min-height: 100%;
+  margin: 0;
 }
 
 body {
-  margin: 0;
-  color: var(--color-text);
+  min-height: 100vh;
+  overflow-x: hidden;
   background:
-    radial-gradient(circle at 90% 10%, rgb(28 107 202 / 8%), transparent 26%),
-    linear-gradient(135deg, #fbfcfe, #edf2f8);
-  font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", sans-serif;
-  -webkit-font-smoothing: antialiased;
+    radial-gradient(circle at 28% 0%, rgba(116, 76, 255, 0.035), transparent 34%),
+    #f5f7fb;
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
 }
 
@@ -55,11 +44,64 @@ a {
   -webkit-tap-highlight-color: transparent;
 }
 
-button {
-  cursor: pointer;
+::selection {
+  background: rgba(123, 55, 244, 0.2);
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+@layer components {
+  .lf-page {
+    @apply mx-auto w-full max-w-[1680px] px-5 py-5 md:px-7 lg:px-8 lg:py-6;
+  }
+
+  .lf-card {
+    @apply rounded-[11px] border border-[#e3e7ef] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.025),0_8px_24px_rgba(31,48,82,0.035)];
+  }
+
+  .lf-card-title {
+    @apply text-[13px] font-semibold text-[#273248];
+  }
+
+  .lf-button {
+    @apply inline-flex h-9 items-center justify-center gap-2 rounded-[7px] px-3.5 text-[12px] font-semibold transition duration-150;
+  }
+
+  .lf-button-primary {
+    @apply inline-flex h-9 items-center justify-center gap-2 rounded-[7px] bg-gradient-to-r from-[#7f34ef] to-[#6b20d8] px-3.5 text-[12px] font-semibold text-white shadow-[0_5px_12px_rgba(117,48,225,0.22)] transition duration-150 hover:brightness-105 active:scale-[0.985];
+  }
+
+  .lf-button-secondary {
+    @apply inline-flex h-9 items-center justify-center gap-2 rounded-[7px] border border-[#dce1ea] bg-white px-3.5 text-[12px] font-semibold text-[#48546a] transition duration-150 hover:border-[#c8cfdb] hover:bg-[#f9fafc];
+  }
+
+  .lf-table-shell {
+    @apply overflow-hidden rounded-[10px] border border-[#e5e9f0] bg-white;
+  }
+
+  .lf-table {
+    @apply w-full border-collapse text-left text-[11px] text-[#3a465d];
+  }
+
+  .lf-table thead {
+    @apply bg-[#fafbfc] text-[10px] font-semibold text-[#5d687d];
+  }
+
+  .lf-table th {
+    @apply whitespace-nowrap border-b border-[#e7ebf1] px-4 py-3;
+  }
+
+  .lf-table td {
+    @apply whitespace-nowrap border-b border-[#edf0f5] px-4 py-3;
+  }
+
+  .lf-input {
+    @apply h-9 w-full rounded-[7px] border border-[#dfe4ec] bg-[#f8f9fc] px-3 text-[12px] text-[#344054] outline-none transition placeholder:text-[#98a1b2] focus:border-[#8a55ef] focus:bg-white focus:ring-2 focus:ring-[#8a55ef]/10;
+  }
+
+  .lf-select {
+    @apply h-9 w-full appearance-none rounded-[7px] border border-[#dfe4ec] bg-[#f8f9fc] bg-[linear-gradient(45deg,transparent_50%,#8893a7_50%),linear-gradient(135deg,#8893a7_50%,transparent_50%)] bg-[position:calc(100%-15px)_15px,calc(100%-10px)_15px] bg-[size:5px_5px,5px_5px] bg-no-repeat px-3 pr-8 text-[12px] text-[#344054] outline-none transition focus:border-[#8a55ef] focus:bg-white focus:ring-2 focus:ring-[#8a55ef]/10;
+  }
+
+  .lf-muted {
+    @apply text-[11px] text-[#7b8597];
+  }
 }
