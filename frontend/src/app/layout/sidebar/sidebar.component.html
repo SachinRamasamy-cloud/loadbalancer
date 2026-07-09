@@ -1,29 +1,112 @@
-<aside
-  class="sidebar"
-  [class.sidebar--mobile-open]="mobileOpen"
-  aria-label="Primary navigation"
->
-  <a class="brand" routerLink="/dashboard" (click)="navigate.emit()">
-    <span class="brand__mark" aria-hidden="true">
-      <i></i>
-      <i></i>
-      <i></i>
-    </span>
-    <span class="brand__name">LOAD<span>FLOW</span></span>
-  </a>
+<!-- Mobile background overlay -->
+<button
+  *ngIf="mobileOpen"
+  type="button"
+  aria-label="Close sidebar"
+  class="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-[2px] lg:hidden"
+  (click)="closeMobile.emit()"
+></button>
 
-  <nav class="sidebar__nav">
-    @for (item of navigation; track item.label) {
-      <a
-        class="nav-item"
-        [routerLink]="item.route"
-        routerLinkActive="nav-item--active"
-        [routerLinkActiveOptions]="{ exact: item.route === '/dashboard' }"
-        (click)="navigate.emit()"
+<aside
+  class="fixed inset-y-0 left-0 z-50 flex w-[230px] flex-col
+         overflow-hidden border-r border-white/10
+         bg-gradient-to-b from-[#123f93] via-[#0d367f] to-[#08255e]
+         shadow-[8px_0_30px_rgba(15,39,85,0.14)]
+         transition-transform duration-300 ease-out
+         lg:translate-x-0"
+  [class.translate-x-0]="mobileOpen"
+  [class.-translate-x-full]="!mobileOpen"
+>
+  <!-- Logo -->
+  <div
+    class="flex h-[74px] shrink-0 items-center border-b border-white/10 px-[20px]"
+  >
+    <a
+      routerLink="/dashboard"
+      class="group flex items-center gap-[9px]"
+      aria-label="LoadFlow dashboard"
+      (click)="handleNavigation()"
+    >
+      <!-- LoadFlow symbol -->
+      <div class="relative h-[30px] w-[30px] shrink-0">
+        <span
+          class="absolute left-[2px] top-[7px] h-[8px] w-[17px]
+                 -rotate-45 rounded-full
+                 bg-gradient-to-r from-[#12d6dd] to-[#2d7ef9]"
+        ></span>
+
+        <span
+          class="absolute left-[8px] top-[12px] h-[8px] w-[17px]
+                 -rotate-45 rounded-full
+                 bg-gradient-to-r from-[#7d4dff] to-[#ef43a8]"
+        ></span>
+
+        <span
+          class="absolute left-[14px] top-[17px] h-[8px] w-[15px]
+                 -rotate-45 rounded-full
+                 bg-gradient-to-r from-[#ff4c73] to-[#ff9b2d]"
+        ></span>
+      </div>
+
+      <span
+        class="text-[17px] font-extrabold tracking-[0.035em] text-white"
       >
-        <app-icon [name]="item.icon" [size]="22" />
-        <span>{{ item.label }}</span>
+        LOAD<span class="text-[#ff8a22]">FLOW</span>
+      </span>
+    </a>
+  </div>
+
+  <!-- Navigation -->
+  <nav
+    class="sidebar-scrollbar flex min-h-0 flex-1 flex-col
+           overflow-y-auto px-[13px] pb-[14px] pt-[15px]"
+    aria-label="Primary navigation"
+  >
+    <div class="space-y-[4px]">
+      <a
+        *ngFor="let item of primaryNavigation"
+        [routerLink]="item.route"
+        routerLinkActive="sidebar-nav-active"
+        [routerLinkActiveOptions]="{ exact: false }"
+        class="sidebar-nav-item group"
+        (click)="handleNavigation()"
+      >
+        <span class="sidebar-nav-icon">
+          <lucide-icon
+            [name]="item.icon"
+            [size]="17"
+            [strokeWidth]="1.8"
+          ></lucide-icon>
+        </span>
+
+        <span class="truncate">
+          {{ item.label }}
+        </span>
       </a>
-    }
+    </div>
+
+    <!-- Push Settings and Help to the bottom -->
+    <div class="mt-auto space-y-[4px] pt-[18px]">
+      <a
+        *ngFor="let item of secondaryNavigation"
+        [routerLink]="item.route"
+        routerLinkActive="sidebar-nav-active"
+        [routerLinkActiveOptions]="{ exact: false }"
+        class="sidebar-nav-item group"
+        (click)="handleNavigation()"
+      >
+        <span class="sidebar-nav-icon">
+          <lucide-icon
+            [name]="item.icon"
+            [size]="17"
+            [strokeWidth]="1.8"
+          ></lucide-icon>
+        </span>
+
+        <span class="truncate">
+          {{ item.label }}
+        </span>
+      </a>
+    </div>
   </nav>
 </aside>

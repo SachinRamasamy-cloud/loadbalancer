@@ -1,42 +1,139 @@
+import { CommonModule } from '@angular/common';
 import {
-  ChangeDetectionStrategy,
   Component,
   EventEmitter,
   Input,
   Output,
 } from '@angular/core';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import {
+  RouterLink,
+  RouterLinkActive,
+} from '@angular/router';
 
 import {
-  AppIconComponent,
-  AppIconName,
-} from '../../shared/components/app-icon/app-icon.component';
+  Activity,
+  BellRing,
+  ChartNoAxesCombined,
+  CircleHelp,
+  FlaskConical,
+  Gauge,
+  Layers3,
+  ListTree,
+  Logs,
+  Network,
+  Server,
+  Settings,
+  ShieldCheck,
+  SlidersHorizontal,
+  LucideAngularModule,
+} from 'lucide-angular';
 
 interface NavigationItem {
-  readonly label: string;
-  readonly icon: AppIconName;
-  readonly route: string;
+  label: string;
+  route: string;
+  icon: string;
 }
 
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [RouterLink, RouterLinkActive, AppIconComponent],
+  imports: [
+    CommonModule,
+    RouterLink,
+    RouterLinkActive,
+    LucideAngularModule,
+  ],
   templateUrl: './sidebar.component.html',
-  styleUrl: './sidebar.component.scss',
-  changeDetection: ChangeDetectionStrategy.OnPush,
+  styleUrl: './sidebar.component.css',
 })
 export class SidebarComponent {
   @Input() mobileOpen = false;
-  @Output() readonly navigate = new EventEmitter<void>();
+  @Output() closeMobile = new EventEmitter<void>();
 
-  readonly navigation: readonly NavigationItem[] = [
-    { label: 'Dashboard', icon: 'dashboard', route: '/dashboard' },
-    { label: 'Server Pools', icon: 'server', route: '/server-pools' },
-    { label: 'Real Servers', icon: 'users', route: '/real-servers' },
-    { label: 'Security', icon: 'shield', route: '/security' },
-    { label: 'Settings', icon: 'settings', route: '/settings' },
-    { label: 'Logs', icon: 'file', route: '/logs' },
-    { label: 'Help', icon: 'help', route: '/help' },
+  readonly sidebarIcons = {
+    Gauge,
+    ChartNoAxesCombined,
+    Layers3,
+    Server,
+    Network,
+    ListTree,
+    Activity,
+    BellRing,
+    Logs,
+    ShieldCheck,
+    FlaskConical,
+    Settings,
+    CircleHelp,
+    SlidersHorizontal,
+  };
+
+  readonly primaryNavigation: NavigationItem[] = [
+    {
+      label: 'Dashboard',
+      route: '/dashboard',
+      icon: 'gauge',
+    },
+    {
+      label: 'Traffic Analytics',
+      route: '/traffic-analytics',
+      icon: 'chart-no-axes-combined',
+    },
+    {
+      label: 'Server Pools',
+      route: '/server-pools',
+      icon: 'layers-3',
+    },
+    {
+      label: 'Real Servers',
+      route: '/real-servers',
+      icon: 'server',
+    },
+    {
+      label: 'Server Details',
+      route: '/server-details',
+      icon: 'network',
+    },
+    {
+      label: 'Request Tracking',
+      route: '/request-tracking',
+      icon: 'list-tree',
+    },
+    {
+      label: 'Health & Alerts',
+      route: '/health-alerts',
+      icon: 'bell-ring',
+    },
+    {
+      label: 'Logs',
+      route: '/logs',
+      icon: 'logs',
+    },
+    {
+      label: 'Security',
+      route: '/security',
+      icon: 'shield-check',
+    },
+    {
+      label: 'Load Testing',
+      route: '/load-testing',
+      icon: 'flask-conical',
+    },
   ];
+
+  readonly secondaryNavigation: NavigationItem[] = [
+    {
+      label: 'Settings',
+      route: '/settings',
+      icon: 'settings',
+    },
+    {
+      label: 'Help',
+      route: '/help',
+      icon: 'circle-help',
+    },
+  ];
+
+  handleNavigation(): void {
+    this.closeMobile.emit();
+  }
 }
