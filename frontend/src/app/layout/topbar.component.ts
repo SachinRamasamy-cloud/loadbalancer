@@ -37,7 +37,7 @@ import { IconComponent } from '../shared/icon.component';
 
         <div class="flex items-center gap-2.5">
           <div class="grid h-8 w-8 place-items-center rounded-full bg-[#153d86] text-[10px] font-bold text-white shadow-sm">JD</div>
-          <span class="hidden text-[12px] font-semibold text-[#263248] sm:block">John Doe</span>
+          <span class="hidden text-[12px] font-semibold text-[#263248] sm:block">User Admin</span>
         </div>
 
         <button class="hidden h-8 rounded-[6px] border border-[#e0e4eb] bg-white px-3 text-[10px] font-semibold text-[#4d586d] hover:bg-[#f8f9fb] sm:inline-flex sm:items-center">
