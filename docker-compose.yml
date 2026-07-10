@@ -1,0 +1,153 @@
+services:
+  load-balancer:
+    build:
+      context: ./backend
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+    depends_on:
+      backend-fast:
+        condition: service_healthy
+      backend-slow:
+        condition: service_healthy
+      backend-unstable:
+        condition: service_healthy
+      backend-failure:
+        condition: service_healthy
+    networks:
+      - lbnet
+
+  dashboard:
+    build:
+      context: ./dashboard
+    ports:
+      - "4200:80"
+    depends_on:
+      - load-balancer
+    networks:
+      - lbnet
+
+  backend-fast:
+    build:
+      context: ./test-backends
+    environment:
+      BACKEND_NAME: backend-fast
+      RESPONSE_DELAY_MS: 20
+      FAILURE_RATE: 0
+    command:
+      [
+        "uvicorn",
+        "app:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "9001"
+      ]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:9001/health')"
+        ]
+      interval: 3s
+      timeout: 2s
+      retries: 10
+    networks:
+      - lbnet
+
+  backend-slow:
+    build:
+      context: ./test-backends
+    environment:
+      BACKEND_NAME: backend-slow
+      RESPONSE_DELAY_MS: 700
+      FAILURE_RATE: 0
+    command:
+      [
+        "uvicorn",
+        "app:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "9002"
+      ]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:9002/health')"
+        ]
+      interval: 3s
+      timeout: 2s
+      retries: 10
+    networks:
+      - lbnet
+
+  backend-unstable:
+    build:
+      context: ./test-backends
+    environment:
+      BACKEND_NAME: backend-unstable
+      RESPONSE_DELAY_MS: 100
+      FAILURE_RATE: 0.25
+    command:
+      [
+        "uvicorn",
+        "app:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "9003"
+      ]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:9003/health')"
+        ]
+      interval: 3s
+      timeout: 2s
+      retries: 10
+    networks:
+      - lbnet
+
+  backend-failure:
+    build:
+      context: ./test-backends
+    environment:
+      BACKEND_NAME: backend-failure
+      RESPONSE_DELAY_MS: 100
+      FAILURE_RATE: 1
+    command:
+      [
+        "uvicorn",
+        "app:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "9004"
+      ]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:9004/health')"
+        ]
+      interval: 3s
+      timeout: 2s
+      retries: 10
+    networks:
+      - lbnet
+
+networks:
+  lbnet:
+    driver: bridge

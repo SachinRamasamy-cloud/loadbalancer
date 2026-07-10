@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.angular/
+dist/
+node_modules/
+*_dev.log
+*dev.log
+.env
