@@ -165,4 +165,46 @@ export class ApiService {
       { headers: this.getHeaders() }
     );
   }
+
+  getSecurityStats(): Observable<any> {
+    return this.http.get<any>(`${this.getApiUrl()}/api/control/security/stats`, {
+      headers: this.getHeaders(),
+    });
+  }
+
+  getAlerts(): Observable<any> {
+    return this.http.get<any>(`${this.getApiUrl()}/api/control/alerts`, {
+      headers: this.getHeaders(),
+    });
+  }
+
+  markAlertsAllRead(): Observable<any> {
+    return this.http.post<any>(`${this.getApiUrl()}/api/control/alerts/mark-all-read`, {}, {
+      headers: this.getHeaders(),
+    });
+  }
+
+  getPools(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.getApiUrl()}/api/control/pools`, {
+      headers: this.getHeaders(),
+    });
+  }
+
+  getAnalytics(): Observable<any> {
+    return this.http.get<any>(`${this.getApiUrl()}/api/control/analytics`, {
+      headers: this.getHeaders(),
+    });
+  }
+
+  getLoadTestActive(): Observable<any> {
+    return this.http.get<any>(`${this.getApiUrl()}/api/control/load-test/active`, {
+      headers: this.getHeaders(),
+    });
+  }
+
+  startLoadTest(): Observable<any> {
+    return this.http.post<any>(`${this.getApiUrl()}/api/control/load-test`, {}, {
+      headers: this.getHeaders(),
+    });
+  }
 }

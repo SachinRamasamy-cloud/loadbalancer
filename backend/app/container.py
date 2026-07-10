@@ -11,6 +11,8 @@ from app.services.proxy import ProxyService
 from app.services.rate_limit import FixedWindowRateLimiter
 from app.services.registry import BackendRegistry
 from app.services.router import TrafficRouter
+from app.services.security_store import SecurityStore
+from app.services.load_tester import LoadTester
 
 
 class Container:
@@ -28,6 +30,8 @@ class Container:
             settings.rate_limit_requests,
             settings.rate_limit_window_seconds,
         )
+        self.security_store = SecurityStore()
+        self.load_tester = LoadTester()
         self.proxy = ProxyService(
             client=self.http_client,
             registry=self.registry,
