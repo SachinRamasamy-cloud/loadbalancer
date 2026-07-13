@@ -37,9 +37,11 @@ class HealthChecker:
     async def _check(self, backend_id: str, url: str) -> None:
         started = time.perf_counter()
         success = False
+        status_code: int | None = None
         error: str | None = None
         try:
             response = await self.client.get(f"{url}/health", timeout=self.settings.connect_timeout_seconds)
+            status_code = response.status_code
             success = 200 <= response.status_code < 400
             if not success:
                 error = f"Health endpoint returned {response.status_code}"
@@ -54,6 +56,7 @@ class HealthChecker:
                 error=error,
                 healthy_threshold=self.settings.healthy_threshold,
                 unhealthy_threshold=self.settings.unhealthy_threshold,
+                status_code=status_code,
             )
         except KeyError:
             logger.debug("Backend removed during health check: %s", backend_id)

@@ -7,6 +7,8 @@ from collections import Counter, deque
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 
+from app.repositories import ApiHistoryRepository, DashboardRepository
+
 
 @dataclass(slots=True)
 class RequestRecord:
@@ -22,20 +24,36 @@ class RequestRecord:
 
 
 class MetricsStore:
-    def __init__(self, max_records: int = 5000) -> None:
+    def __init__(
+        self,
+        max_records: int = 5000,
+        dashboard_repository: DashboardRepository | None = None,
+        history_repository: ApiHistoryRepository | None = None,
+    ) -> None:
         self._records: deque[RequestRecord] = deque(maxlen=max_records)
         self._started = time.monotonic()
         self._lock = asyncio.Lock()
+        self._dashboard_repository = dashboard_repository
+        self._history_repository = history_repository
 
     async def record(self, item: RequestRecord) -> None:
         async with self._lock:
             self._records.append(item)
 
     async def recent_logs(self, limit: int = 100) -> list[dict]:
+        if self._history_repository is not None and self._history_repository.database.available:
+            rows = await self._history_repository.recent(limit)
+            if rows:
+                return rows
         async with self._lock:
             return [asdict(item) for item in list(self._records)[-limit:]][::-1]
 
     async def overview(self) -> dict:
+        if self._dashboard_repository is not None and self._dashboard_repository.database.available:
+            value = await self._dashboard_repository.overview()
+            if value is not None:
+                return value
+
         async with self._lock:
             records = list(self._records)
         total = len(records)
@@ -54,6 +72,11 @@ class MetricsStore:
         }
 
     async def timeseries(self, buckets: int = 20, bucket_seconds: int = 15) -> list[dict]:
+        if self._dashboard_repository is not None and self._dashboard_repository.database.available:
+            rows = await self._dashboard_repository.timeseries(buckets)
+            if rows:
+                return rows
+
         now = datetime.now(timezone.utc).timestamp()
         start = now - buckets * bucket_seconds
         async with self._lock:

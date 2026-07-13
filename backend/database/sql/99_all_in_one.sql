@@ -1985,12 +1985,8 @@ declare
     v_successes integer;
     v_failures integer;
 begin
-    select
-        b.enabled,
-        s.*
-    into
-        v_enabled,
-        v_state
+    select b.enabled
+    into v_enabled
     from public.backend_services b
     join public.backend_runtime_state s
       on s.backend_id = b.id
@@ -2002,6 +1998,11 @@ begin
     if not found then
         raise exception 'Backend not found: %', p_backend_id;
     end if;
+
+    select *
+    into v_state
+    from public.backend_runtime_state
+    where backend_id = p_backend_id;
 
     v_old_status := v_state.status;
 

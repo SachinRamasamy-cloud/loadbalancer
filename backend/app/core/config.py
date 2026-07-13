@@ -26,6 +26,22 @@ class Settings:
     cors_origins: tuple[str, ...] = ("http://localhost:4200",)
     seed_backends: list[dict] = field(default_factory=list)
 
+    database_url_runtime: str | None = None
+    database_required: bool = False
+    database_transaction_pooler: bool = False
+    database_application_name: str = "loadflow-api"
+    db_pool_size: int = 3
+    db_max_overflow: int = 2
+    db_pool_timeout_seconds: float = 10.0
+    db_pool_recycle_seconds: int = 600
+
+    telemetry_queue_max_size: int = 10000
+    telemetry_batch_size: int = 250
+    telemetry_flush_interval_ms: int = 500
+    telemetry_lock_timeout_seconds: int = 300
+
+    load_test_target_url: str = "http://localhost:8080/api/demo"
+
     @classmethod
     def from_env(cls) -> "Settings":
         def bool_env(name: str, default: bool) -> bool:
@@ -46,6 +62,8 @@ class Settings:
         except (json.JSONDecodeError, ValueError) as exc:
             raise RuntimeError(f"Invalid SEED_BACKENDS_JSON: {exc}") from exc
 
+        database_url = os.getenv("DATABASE_URL_RUNTIME") or os.getenv("DATABASE_URL")
+
         return cls(
             admin_api_key=os.getenv("ADMIN_API_KEY", "change-me"),
             log_level=os.getenv("LOG_LEVEL", "INFO"),
@@ -64,6 +82,19 @@ class Settings:
             expose_selected_backend_header=bool_env("EXPOSE_SELECTED_BACKEND_HEADER", False),
             cors_origins=tuple_env("CORS_ORIGINS", ("http://localhost:4200",)),
             seed_backends=seed,
+            database_url_runtime=database_url,
+            database_required=bool_env("DATABASE_REQUIRED", False),
+            database_transaction_pooler=bool_env("DATABASE_TRANSACTION_POOLER", False),
+            database_application_name=os.getenv("DATABASE_APPLICATION_NAME", "loadflow-api"),
+            db_pool_size=int(os.getenv("DB_POOL_SIZE", "3")),
+            db_max_overflow=int(os.getenv("DB_MAX_OVERFLOW", "2")),
+            db_pool_timeout_seconds=float(os.getenv("DB_POOL_TIMEOUT_SECONDS", "10")),
+            db_pool_recycle_seconds=int(os.getenv("DB_POOL_RECYCLE_SECONDS", "600")),
+            telemetry_queue_max_size=int(os.getenv("TELEMETRY_QUEUE_MAX_SIZE", "10000")),
+            telemetry_batch_size=int(os.getenv("TELEMETRY_BATCH_SIZE", "250")),
+            telemetry_flush_interval_ms=int(os.getenv("TELEMETRY_FLUSH_INTERVAL_MS", "500")),
+            telemetry_lock_timeout_seconds=int(os.getenv("TELEMETRY_LOCK_TIMEOUT_SECONDS", "300")),
+            load_test_target_url=os.getenv("LOAD_TEST_TARGET_URL", "http://localhost:8080/api/demo"),
         )
 
 
