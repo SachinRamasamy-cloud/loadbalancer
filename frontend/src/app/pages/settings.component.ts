@@ -1,8 +1,8 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { NgFor, NgIf, NgClass } from '@angular/common';
+import { NgClass, NgFor, NgIf } from '@angular/common';
 import { RouterLink, RouterLinkActive } from '@angular/router';
-import { ApiService } from '../services/api.service';
+import { ApiService, ConnectionTestResult } from '../services/api.service';
 
 @Component({
   selector: 'app-settings-page',
@@ -35,9 +35,35 @@ import { ApiService } from '../services/api.service';
               <span class="mb-1.5 block text-[9px] font-medium text-[#606b7f]">Admin API Key (X-Admin-API-Key)</span>
               <input class="lf-input" type="password" [(ngModel)]="apiKey" placeholder="X-Admin-API-Key value" />
             </label>
-            <div class="rounded-lg bg-gray-50 p-2 text-[10px] text-gray-500 font-medium">
-              Update these fields to connect LoadFlow to your custom backend load balancer instance.
+
+            <div class="rounded-lg bg-gray-50 p-2 text-[10px] font-medium text-gray-500">
+              The frontend calls FastAPI only. Supabase credentials must remain in the backend environment.
             </div>
+
+            <div *ngIf="connectionResult" class="space-y-2 rounded-lg border border-[#e7ebf1] p-3 text-[10px]">
+              <div class="flex justify-between">
+                <span class="text-[#778196]">FastAPI</span>
+                <strong [ngClass]="connectionResult.platform.status === 'ok' ? 'text-[#08a981]' : 'text-[#f59e0b]'">
+                  {{ connectionResult.platform.status }}
+                </strong>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-[#778196]">Supabase</span>
+                <strong [ngClass]="connectionResult.database.database.available ? 'text-[#08a981]' : 'text-[#ef3f55]'">
+                  {{ connectionResult.database.database.available ? 'Connected' : 'Unavailable' }}
+                </strong>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-[#778196]">History Worker</span>
+                <strong [ngClass]="connectionResult.database.api_history_worker.running ? 'text-[#08a981]' : 'text-[#f59e0b]'">
+                  {{ connectionResult.database.api_history_worker.running ? 'Running' : 'Stopped' }}
+                </strong>
+              </div>
+            </div>
+
+            <button (click)="testConnection()" [disabled]="testingConnection" class="lf-button-secondary w-full">
+              {{ testingConnection ? 'Testing Connection...' : 'Test Connection' }}
+            </button>
           </div>
         </article>
 
@@ -52,10 +78,10 @@ import { ApiService } from '../services/api.service';
                 </option>
               </select>
             </label>
-            <div class="text-[10px] text-[#778196] space-y-1">
+            <div class="space-y-1 text-[10px] text-[#778196]">
               <p><strong>Round Robin:</strong> predictable, equal rotation.</p>
               <p><strong>Smooth Weighted Round Robin:</strong> proportional capacity without bursty loops.</p>
-              <p><strong>Least In-Flight:</strong> chooses lowest active_requests / weight score.</p>
+              <p><strong>Least In-Flight:</strong> chooses the lowest active-requests-to-weight score.</p>
             </div>
           </div>
         </article>
@@ -63,22 +89,22 @@ import { ApiService } from '../services/api.service';
         <article class="lf-card flex flex-col p-4">
           <h2 class="lf-card-title text-[14px]">Health Check Configuration</h2>
           <div class="mt-5 space-y-4 text-[10px]">
-            <p>Load balancer performs active health checks on backends at background intervals.</p>
+            <p>LoadFlow performs active backend health checks at background intervals.</p>
             <dl class="space-y-2 text-[11px]">
               <div class="flex justify-between border-b border-gray-100 pb-1">
-                <dt class="text-gray-500 font-medium">Interval</dt>
+                <dt class="font-medium text-gray-500">Interval</dt>
                 <dd class="font-semibold text-gray-800">5 seconds</dd>
               </div>
               <div class="flex justify-between border-b border-gray-100 pb-1">
-                <dt class="text-gray-500 font-medium">Timeout</dt>
+                <dt class="font-medium text-gray-500">Timeout</dt>
                 <dd class="font-semibold text-gray-800">3 seconds</dd>
               </div>
               <div class="flex justify-between border-b border-gray-100 pb-1">
-                <dt class="text-gray-500 font-medium">Healthy Threshold</dt>
+                <dt class="font-medium text-gray-500">Healthy Threshold</dt>
                 <dd class="font-semibold text-gray-800">2 successes</dd>
               </div>
               <div class="flex justify-between pb-1">
-                <dt class="text-gray-500 font-medium">Unhealthy Threshold</dt>
+                <dt class="font-medium text-gray-500">Unhealthy Threshold</dt>
                 <dd class="font-semibold text-gray-800">3 failures</dd>
               </div>
             </dl>
@@ -95,8 +121,14 @@ export class SettingsComponent implements OnInit {
   apiUrl = '';
   apiKey = '';
   selectedAlgorithm = 'round_robin';
-  availableAlgorithms: string[] = ['round_robin', 'smooth_weighted', 'least_inflight'];
+  availableAlgorithms: string[] = [
+    'round_robin',
+    'smooth_weighted_round_robin',
+    'least_inflight',
+  ];
 
+  connectionResult: ConnectionTestResult | null = null;
+  testingConnection = false;
   notification: { type: 'success' | 'error'; message: string } | null = null;
 
   readonly tabs = [
@@ -105,30 +137,59 @@ export class SettingsComponent implements OnInit {
     { label: 'Health Checks', route: '/settings/health-checks' },
   ];
 
-  constructor(private readonly apiService: ApiService, private readonly cdr: ChangeDetectorRef) {}
+  constructor(
+    private readonly apiService: ApiService,
+    private readonly cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit(): void {
     this.apiUrl = this.apiService.getApiUrl();
     this.apiKey = this.apiService.getApiKey();
-
     this.loadRouting();
   }
 
   loadRouting(): void {
     this.apiService.getRouting().subscribe({
       next: (data) => {
-        if (data) {
-          this.selectedAlgorithm = data.algorithm;
-          this.availableAlgorithms = data.available || this.availableAlgorithms;
-          this.cdr.detectChanges();
-        }
+        this.selectedAlgorithm = data.algorithm;
+        this.availableAlgorithms = data.available?.length
+          ? data.available
+          : this.availableAlgorithms;
+        this.cdr.detectChanges();
       },
-      error: (err) => console.error('Error fetching routing info:', err),
+      error: () => {
+        // The connection form remains usable even when the saved endpoint is offline.
+      },
     });
   }
 
-  formatAlgoName(algo: string): string {
-    return algo
+  testConnection(): void {
+    this.notification = null;
+    this.connectionResult = null;
+    this.testingConnection = true;
+
+    this.apiService.testConnection(this.apiUrl, this.apiKey).subscribe({
+      next: (result) => {
+        this.connectionResult = result;
+        this.testingConnection = false;
+        this.showNotification(
+          result.database.database.available ? 'success' : 'error',
+          result.database.database.available
+            ? 'FastAPI, Supabase, and the API history worker are reachable.'
+            : 'FastAPI is reachable, but Supabase is unavailable.'
+        );
+        this.cdr.detectChanges();
+      },
+      error: (error: unknown) => {
+        this.testingConnection = false;
+        this.showNotification('error', this.apiService.getErrorMessage(error));
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  formatAlgoName(algorithm: string): string {
+    return algorithm
       .split('_')
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
@@ -136,23 +197,20 @@ export class SettingsComponent implements OnInit {
 
   saveChanges(): void {
     this.notification = null;
-
-    // Save local API Connection details
     this.apiService.setApiUrl(this.apiUrl);
     this.apiService.setApiKey(this.apiKey);
 
-    // Save Routing settings to backend
     this.apiService.updateRouting(this.selectedAlgorithm).subscribe({
       next: () => {
-        this.showNotification('success', 'Settings and active routing algorithm saved successfully!');
+        this.apiUrl = this.apiService.getApiUrl();
+        this.showNotification('success', 'Connection settings and routing algorithm were saved.');
         this.loadRouting();
         this.cdr.detectChanges();
       },
-      error: (err) => {
-        console.error(err);
+      error: (error: unknown) => {
         this.showNotification(
           'error',
-          'Updated local connection details, but failed to save routing settings to the backend. Please check your backend URL and Admin API Key.'
+          `The local connection settings were saved, but the routing update failed: ${this.apiService.getErrorMessage(error)}`
         );
         this.cdr.detectChanges();
       },
@@ -161,8 +219,9 @@ export class SettingsComponent implements OnInit {
 
   private showNotification(type: 'success' | 'error', message: string): void {
     this.notification = { type, message };
-    setTimeout(() => {
+    window.setTimeout(() => {
       this.notification = null;
+      this.cdr.detectChanges();
     }, 6000);
   }
 }

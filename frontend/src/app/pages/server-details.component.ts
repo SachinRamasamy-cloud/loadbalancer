@@ -1,12 +1,12 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
-import { NgClass, NgFor, NgIf, TitleCasePipe, DatePipe } from '@angular/common';
+import { NgClass, NgFor, NgIf, TitleCasePipe } from '@angular/common';
 import { StatCardComponent } from '../shared/stat-card.component';
-import { ApiService, BackendModel, LogRecord } from '../services/api.service';
+import { ApiService, BackendModel, TrackingRecord } from '../services/api.service';
 
 @Component({
   selector: 'app-server-details-page',
   standalone: true,
-  imports: [NgClass, NgFor, NgIf, TitleCasePipe, DatePipe, StatCardComponent],
+  imports: [NgClass, NgFor, NgIf, TitleCasePipe, StatCardComponent],
   template: `
     <section class="lf-page">
       <div class="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -88,7 +88,7 @@ import { ApiService, BackendModel, LogRecord } from '../services/api.service';
 export class ServerDetailsComponent implements OnInit {
   backends: BackendModel[] = [];
   selectedBackend: BackendModel | null = null;
-  backendLogs: LogRecord[] = [];
+  backendLogs: TrackingRecord[] = [];
 
   constructor(private readonly apiService: ApiService, private readonly cdr: ChangeDetectorRef) {}
 
@@ -120,7 +120,7 @@ export class ServerDetailsComponent implements OnInit {
 
   loadBackendLogs(): void {
     if (!this.selectedBackend) return;
-    this.apiService.getLogs(50).subscribe({
+    this.apiService.getTrackingRecords(200).subscribe({
       next: (logs) => {
         this.backendLogs = (logs || []).filter(l => l.backend_id === this.selectedBackend?.id);
         this.cdr.detectChanges();

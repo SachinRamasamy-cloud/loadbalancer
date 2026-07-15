@@ -1,7 +1,7 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { NgClass, NgFor, NgIf } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ApiService, LogRecord } from '../services/api.service';
+import { ApiService, TrackingRecord } from '../services/api.service';
 import { IconComponent } from '../shared/icon.component';
 
 @Component({
@@ -20,16 +20,21 @@ import { IconComponent } from '../shared/icon.component';
         </button>
       </div>
 
+      <div *ngIf="errorMessage" class="mb-4 rounded-lg bg-[#fff0f2] p-3 text-[11px] font-medium text-[#ef3f55]">
+        {{ errorMessage }}
+      </div>
+
       <div class="lf-card p-4">
         <input class="lf-input max-w-md" [(ngModel)]="searchQuery" placeholder="Enter request ID or endpoint..." />
 
         <div class="mt-5 overflow-x-auto">
-          <table class="lf-table min-w-[900px]">
+          <table class="lf-table min-w-[980px]">
             <thead>
               <tr>
                 <th>Request ID</th>
                 <th>Endpoint</th>
                 <th>Backend</th>
+                <th>Attempts</th>
                 <th>Retries</th>
                 <th>Timeouts</th>
                 <th>Status</th>
@@ -41,21 +46,22 @@ import { IconComponent } from '../shared/icon.component';
                 <td class="font-mono text-[11px]">{{ row.request_id }}</td>
                 <td class="font-semibold">{{ row.method }} {{ row.path }}</td>
                 <td class="font-mono">{{ row.backend_id || 'None' }}</td>
+                <td>{{ row.attempt_count }}</td>
                 <td>{{ row.retry_count }}</td>
                 <td>
-                  <span *ngIf="isTimeout(row)" class="text-red-500 font-semibold">1</span>
+                  <span *ngIf="isTimeout(row)" class="font-semibold text-red-500">1</span>
                   <span *ngIf="!isTimeout(row)">0</span>
                 </td>
                 <td>
-                  <span [ngClass]="row.status_code >= 400 ? 'text-[#ef4444] font-semibold' : 'text-[#08a981] font-semibold'">
+                  <span [ngClass]="row.status_code >= 400 ? 'font-semibold text-[#ef4444]' : 'font-semibold text-[#08a981]'">
                     {{ row.status_code }}
                   </span>
                 </td>
                 <td>{{ row.duration_ms }} ms</td>
               </tr>
               <tr *ngIf="filteredRows().length === 0">
-                <td colspan="7" class="text-center py-8 text-[#778196]">
-                  No matching tracked requests found. Try generating traffic!
+                <td colspan="8" class="py-8 text-center text-[#778196]">
+                  No matching tracked requests found. Generate traffic through /api/demo and refresh this page.
                 </td>
               </tr>
             </tbody>
@@ -66,42 +72,54 @@ import { IconComponent } from '../shared/icon.component';
   `,
 })
 export class RequestTrackingComponent implements OnInit {
-  rows: LogRecord[] = [];
+  rows: TrackingRecord[] = [];
   searchQuery = '';
+  errorMessage = '';
 
-  constructor(private readonly apiService: ApiService, private readonly cdr: ChangeDetectorRef) {}
+  constructor(
+    private readonly apiService: ApiService,
+    private readonly cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit(): void {
     this.loadTracking();
   }
 
   loadTracking(): void {
-    this.apiService.getLogs(100).subscribe({
+    this.errorMessage = '';
+    this.apiService.getTrackingRecords(200).subscribe({
       next: (data) => {
         this.rows = data || [];
         this.cdr.detectChanges();
       },
-      error: (err) => console.error('Error fetching logs for tracking:', err),
+      error: (error: unknown) => {
+        this.rows = [];
+        this.errorMessage = this.apiService.getErrorMessage(error);
+        this.cdr.detectChanges();
+      },
     });
   }
 
-  filteredRows(): LogRecord[] {
-    const q = this.searchQuery.trim().toLowerCase();
-    if (!q) return this.rows;
+  filteredRows(): TrackingRecord[] {
+    const query = this.searchQuery.trim().toLowerCase();
+    if (!query) return this.rows;
 
-    return this.rows.filter((row) => {
-      return (
-        row.request_id.toLowerCase().includes(q) ||
-        row.path.toLowerCase().includes(q) ||
-        (row.backend_id && row.backend_id.toLowerCase().includes(q))
-      );
-    });
+    return this.rows.filter((row) =>
+      row.request_id.toLowerCase().includes(query) ||
+      row.path.toLowerCase().includes(query) ||
+      row.method.toLowerCase().includes(query) ||
+      row.outcome.toLowerCase().includes(query) ||
+      (row.backend_id?.toLowerCase().includes(query) ?? false) ||
+      row.status_code.toString().includes(query)
+    );
   }
 
-  isTimeout(row: LogRecord): boolean {
+  isTimeout(row: TrackingRecord): boolean {
     return (
+      row.outcome === 'timeout' ||
       row.duration_ms >= 15000 ||
-      (row.error ? row.error.toLowerCase().includes('timeout') : false)
+      row.error_type?.toLowerCase().includes('timeout') === true ||
+      row.error?.toLowerCase().includes('timeout') === true
     );
   }
 }

@@ -80,6 +80,7 @@ export class SidebarComponent {
     { label: 'Real Servers', route: '/real-servers', icon: 'server' },
     { label: 'Server Details', route: '/server-details', icon: 'network' },
     { label: 'Request Tracking', route: '/request-tracking', icon: 'request' },
+    { label: 'Live API Flow', route: '/api-flow', icon: 'flow' },
     { label: 'Health & Alerts', route: '/health-alerts', icon: 'alert' },
     { label: 'Logs', route: '/logs', icon: 'logs' },
     { label: 'Security', route: '/security', icon: 'shield' },

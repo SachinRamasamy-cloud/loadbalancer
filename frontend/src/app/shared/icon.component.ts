@@ -6,6 +6,7 @@ const ICON_PATHS: Record<string, string> = {
   layers: 'm12 3 9 5-9 5-9-5 9-5Zm-9 10 9 5 9-5M3 17l9 5 9-5',
   server: 'M4 5h16v5H4V5Zm0 9h16v5H4v-5ZM7 7.5h.01M7 16.5h.01M11 7.5h6M11 16.5h6',
   network: 'M12 4v4m0 8v4M4 12h4m8 0h4M9 9l-3-3m9 3 3-3M9 15l-3 3m9-3 3 3M9 9h6v6H9V9Z',
+  flow: 'M4 12h4m8 0h4M8 12c0-4 2-7 5-7h3M8 12c0 4 2 7 5 7h3M16 5l3 0m-3 14h3M16 5l2-2m-2 2 2 2m-2 12 2-2m-2 2 2 2',
   request: 'M5 6h11m-3-3 3 3-3 3M19 18H8m3-3-3 3 3 3',
   alert: 'M12 3 2.8 19h18.4L12 3Zm0 6v4m0 3h.01',
   logs: 'M5 4h14v16H5V4Zm3 4h8M8 12h8M8 16h5',

@@ -1,5 +1,5 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
-import { NgFor, NgClass, NgIf, DatePipe, DecimalPipe } from '@angular/common';
+import { NgFor, NgClass, NgIf, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../shared/icon.component';
 import { ApiService, LogRecord } from '../services/api.service';
@@ -7,7 +7,7 @@ import { ApiService, LogRecord } from '../services/api.service';
 @Component({
   selector: 'app-logs-page',
   standalone: true,
-  imports: [NgFor, NgIf, NgClass, IconComponent, FormsModule, DatePipe, DecimalPipe],
+  imports: [NgFor, NgIf, NgClass, IconComponent, FormsModule, DecimalPipe],
   template: `
     <section class="lf-page">
       <div class="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

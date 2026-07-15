@@ -1,5 +1,5 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
-import { NgFor, NgIf, DecimalPipe } from '@angular/common';
+import { NgFor, NgIf } from '@angular/common';
 import { IconComponent } from '../shared/icon.component';
 import { StatCardComponent } from '../shared/stat-card.component';
 import { ApiService, OverviewMetrics } from '../services/api.service';
@@ -7,7 +7,7 @@ import { ApiService, OverviewMetrics } from '../services/api.service';
 @Component({
   selector: 'app-traffic-analytics-page',
   standalone: true,
-  imports: [NgFor, NgIf, DecimalPipe, IconComponent, StatCardComponent],
+  imports: [NgFor, NgIf, IconComponent, StatCardComponent],
   template: `
     <section class="lf-page">
       <div class="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
