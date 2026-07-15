@@ -1,13 +1,12 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { NgFor, NgIf, DecimalPipe } from '@angular/common';
-import { IconComponent } from '../shared/icon.component';
 import { StatCardComponent } from '../shared/stat-card.component';
 import { ApiService } from '../services/api.service';
 
 @Component({
   selector: 'app-health-alerts-page',
   standalone: true,
-  imports: [NgFor, NgIf, DecimalPipe, IconComponent, StatCardComponent],
+  imports: [NgFor, NgIf, DecimalPipe, StatCardComponent],
   template: `
     <section class="lf-page">
       <div class="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

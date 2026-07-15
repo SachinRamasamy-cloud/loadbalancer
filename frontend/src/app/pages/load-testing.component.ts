@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
-import { NgClass, NgIf, DecimalPipe } from '@angular/common';
+import { NgClass, DecimalPipe } from '@angular/common';
 import { IconComponent } from '../shared/icon.component';
 import { StatCardComponent } from '../shared/stat-card.component';
 import { ApiService } from '../services/api.service';
@@ -8,7 +8,7 @@ import { Subscription, interval } from 'rxjs';
 @Component({
   selector: 'app-load-testing-page',
   standalone: true,
-  imports: [NgClass, NgIf, DecimalPipe, IconComponent, StatCardComponent],
+  imports: [NgClass, DecimalPipe, IconComponent, StatCardComponent],
   template: `
     <section class="lf-page">
       <div class="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

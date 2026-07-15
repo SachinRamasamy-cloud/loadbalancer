@@ -1,0 +1,17 @@
+LoadFlow connected frontend with Live API Neural Flow
+
+Validation date: 2026-07-15
+Angular: 22.0.6
+TypeScript: 6.0.2
+Build Node runtime: 24.15.0
+
+Commands executed:
+  npm ci
+  npx -y -p node@24.15.0 node node_modules/@angular/cli/bin/ng.js build
+
+Result:
+  Production build completed successfully.
+  API flow lazy chunk generated successfully.
+
+Output:
+  dist/dashboard-v2/browser

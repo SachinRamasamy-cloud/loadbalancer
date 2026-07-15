@@ -32,6 +32,10 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/request-tracking.component').then((m) => m.RequestTrackingComponent),
       },
       {
+        path: 'api-flow',
+        loadComponent: () => import('./features/api-flow/api-flow.component').then((m) => m.ApiFlowComponent),
+      },
+      {
         path: 'health-alerts',
         loadComponent: () => import('./pages/health-alerts.component').then((m) => m.HealthAlertsComponent),
       },
