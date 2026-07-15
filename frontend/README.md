@@ -1,59 +1,111 @@
-# DashboardV2
+# LoadFlow Frontend — Connected Angular Dashboard
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 22.0.5.
+This is the existing LoadFlow design connected to the FastAPI control API and Supabase-backed request history.
 
-## Development server
+## Connected backend endpoints
 
-To start a local development server, run:
+- `GET /healthz`
+- `GET /api/control/database/status`
+- `GET /api/control/overview`
+- `GET /api/control/metrics/timeseries`
+- `GET /api/control/logs`
+- `GET /api/control/history/requests`
+- `GET /api/control/history/requests/{request_id}`
+- Backend CRUD and enable/disable/drain endpoints
+- Routing endpoints
+- Analytics, pools, security, alerts, and load-test endpoints
 
-```bash
-ng serve
-```
-
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
-
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
-```bash
-ng generate component component-name
-```
-
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+## Local setup
 
 ```bash
-ng generate --help
+npm install
+npm start
 ```
 
-## Building
+Open:
 
-To build the project run:
+```text
+http://localhost:4200
+```
+
+The default backend is:
+
+```text
+http://localhost:8080
+```
+
+The default local admin key is:
+
+```text
+change-me
+```
+
+Change both values from **Settings → General & Connection**.
+
+## Runtime configuration
+
+Edit `public/runtime-config.js` before building:
+
+```js
+window.__LOADFLOW_CONFIG__ = {
+  apiUrl: 'https://your-fastapi-domain.example.com',
+  apiKey: 'your-demo-admin-key'
+};
+```
+
+Values saved in the Settings page use `localStorage` and override the runtime defaults.
+
+## Backend CORS
+
+The FastAPI backend must include the frontend origin:
+
+```env
+CORS_ORIGINS=http://localhost:4200,https://your-frontend.vercel.app
+```
+
+For an HTTPS Vercel frontend, the backend must also use HTTPS. Browsers block HTTPS pages from calling an HTTP API.
+
+## Production build
 
 ```bash
-ng build
+npm run build
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+Output:
 
-## Running unit tests
+```text
+dist/dashboard-v2/browser
+```
 
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
+## Vercel
+
+The included `vercel.json` uses:
+
+```text
+Build command: npm run build
+Output directory: dist/dashboard-v2/browser
+```
+
+## Docker
+
+Build:
 
 ```bash
-ng test
+docker build -t loadflow-frontend .
 ```
 
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
+Run:
 
 ```bash
-ng e2e
+docker run --rm \
+  -p 4200:80 \
+  -e LOADFLOW_API_URL=http://localhost:8080 \
+  -e LOADFLOW_API_KEY=change-me \
+  loadflow-frontend
 ```
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+When the frontend and backend are in the same Docker Compose project, the browser still needs a host-accessible backend URL. Use `http://localhost:8080` for local browser access, not the Docker-only hostname `load-balancer`.
 
-## Additional Resources
+## Security note
 
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+An API key used by browser JavaScript can be inspected by users. For a public production deployment, expose read-only dashboard endpoints or add user authentication and server-side authorization instead of embedding a privileged administrative key.
