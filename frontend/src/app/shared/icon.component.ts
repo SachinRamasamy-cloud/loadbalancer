@@ -29,6 +29,7 @@ const ICON_PATHS: Record<string, string> = {
   logout: 'M10 5H5v14h5m4-4 4-3-4-3m4 3H9',
   info: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Zm0-11v6m0-10h.01',
   activity: 'M3 12h4l2-7 4 14 2-7h6',
+  refresh: 'M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7',
   route: 'M5 5h5v5H5V5Zm9 9h5v5h-5v-5ZM10 7.5h2a4 4 0 0 1 4 4V14',
   lock: 'M6 10h12v10H6V10Zm3 0V7a3 3 0 0 1 6 0v3',
   user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9a7 7 0 0 1 14 0',

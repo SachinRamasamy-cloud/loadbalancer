@@ -24,6 +24,8 @@ import {
   ApiFlowTarget,
 } from './api-flow.models';
 import { ApiFlowService } from './api-flow.service';
+import { ApiFlowLiveStreamService } from './api-flow-live-stream.service';
+import { ApiFlowStreamState } from './api-flow.models';
 
 @Component({
   selector: 'app-api-flow-page',
@@ -46,11 +48,11 @@ import { ApiFlowService } from './api-flow.service';
             <h1 class="text-[24px] font-bold tracking-[-0.03em] text-[#1a2438]">Live API Neural Flow</h1>
             <span class="inline-flex items-center gap-1.5 rounded-full border border-[#bdeee8] bg-[#edfffc] px-2 py-1 text-[9px] font-bold uppercase tracking-[0.14em] text-[#078c82]">
               <i class="h-1.5 w-1.5 animate-pulse rounded-full bg-[#0fbaa9]"></i>
-              Global interceptor
+              {{ streamState.status === 'connected' ? 'Backend live stream' : streamState.status }}
             </span>
           </div>
           <p class="mt-1 max-w-3xl text-[11px] leading-5 text-[#778196]">
-            Every Angular HttpClient request is captured automatically and animated from the UI through FastAPI to its API module and destination service.
+            Every API request received by FastAPI is streamed live and animated, including Angular, curl, Postman, load tests, retries, backend selection, and database persistence.
           </p>
         </div>
 
@@ -69,6 +71,9 @@ import { ApiFlowService } from './api-flow.service';
           <button (click)="clearEvents()" class="lf-button-secondary">
             <app-icon name="logs" [size]="13" /> Clear
           </button>
+          <button (click)="restartStream()" class="lf-button-secondary">
+            <app-icon name="refresh" [size]="13" /> Reconnect Stream
+          </button>
         </div>
       </div>
 
@@ -80,7 +85,7 @@ import { ApiFlowService } from './api-flow.service';
         <article class="lf-card p-4">
           <div class="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#7b8597]">Observed calls</div>
           <div class="mt-2 text-[24px] font-bold tracking-[-0.04em] text-[#202b42]">{{ events.length }}</div>
-          <div class="mt-1 text-[10px] text-[#8b95a7]">Current in-memory flow window</div>
+          <div class="mt-1 text-[10px] text-[#8b95a7]">Browser and external API requests</div>
         </article>
         <article class="lf-card p-4">
           <div class="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#7b8597]">Active</div>
@@ -285,7 +290,7 @@ import { ApiFlowService } from './api-flow.service';
             <div class="flex items-center justify-between gap-3">
               <div>
                 <h2 class="lf-card-title">API call stream</h2>
-                <p class="mt-1 text-[10px] text-[#8b95a7]">Newest browser calls appear first.</p>
+                <p class="mt-1 text-[10px] text-[#8b95a7]">Newest calls from Angular, curl, Postman, and load tests appear first.</p>
               </div>
               <span class="rounded-full bg-[#f1ecff] px-2 py-1 text-[9px] font-bold text-[#7041d8]">
                 {{ filteredEvents.length }} calls
@@ -338,7 +343,7 @@ import { ApiFlowService } from './api-flow.service';
           <div class="flex items-center justify-between">
             <div>
               <h2 class="lf-card-title">Endpoint coverage</h2>
-              <p class="mt-1 text-[10px] text-[#8b95a7]">All current frontend API families are mapped into the neural graph.</p>
+              <p class="mt-1 text-[10px] text-[#8b95a7]">All FastAPI endpoint families are mapped into the neural graph.</p>
             </div>
           </div>
           <div class="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
@@ -362,7 +367,7 @@ import { ApiFlowService } from './api-flow.service';
           <div class="flex items-start justify-between gap-3">
             <div>
               <h2 class="lf-card-title">Selected call</h2>
-              <p class="mt-1 text-[10px] text-[#8b95a7]">Inspect one frontend-to-backend transfer.</p>
+              <p class="mt-1 text-[10px] text-[#8b95a7]">Inspect one complete client-to-backend transfer.</p>
             </div>
             <a routerLink="/request-tracking" class="text-[10px] font-semibold text-[#7040dc] hover:underline">Request history</a>
           </div>
@@ -395,6 +400,22 @@ import { ApiFlowService } from './api-flow.service';
                 <dt class="text-[#8b95a7]">Selected backend</dt>
                 <dd class="mt-1 font-semibold text-[#344056]">{{ selectedEvent.selectedBackend || 'Not reported' }}</dd>
               </div>
+              <div class="rounded-lg bg-[#f7f8fb] p-3">
+                <dt class="text-[#8b95a7]">Client source</dt>
+                <dd class="mt-1 font-semibold text-[#344056]">{{ selectedEvent.clientName || selectedEvent.source }}</dd>
+              </div>
+              <div class="rounded-lg bg-[#f7f8fb] p-3">
+                <dt class="text-[#8b95a7]">Lifecycle stage</dt>
+                <dd class="mt-1 break-all font-semibold text-[#344056]">{{ selectedEvent.lifecycleStage }}</dd>
+              </div>
+              <div class="rounded-lg bg-[#f7f8fb] p-3">
+                <dt class="text-[#8b95a7]">Attempt / retries</dt>
+                <dd class="mt-1 font-semibold text-[#344056]">{{ selectedEvent.attemptNumber || 1 }} / {{ selectedEvent.retryCount }}</dd>
+              </div>
+              <div class="rounded-lg bg-[#f7f8fb] p-3">
+                <dt class="text-[#8b95a7]">History persistence</dt>
+                <dd class="mt-1 font-semibold text-[#344056]">{{ selectedEvent.persisted === true ? 'Saved' : selectedEvent.persisted === false ? 'Pending / unavailable' : 'Not reported' }}</dd>
+              </div>
             </dl>
 
             <div *ngIf="selectedEvent.errorMessage" class="rounded-lg border border-[#ffd8dd] bg-[#fff4f5] p-3 text-[10px] leading-5 text-[#c93e52]">
@@ -419,11 +440,13 @@ import { ApiFlowService } from './api-flow.service';
     .edge-pending { stroke:#7547e4; }
     .edge-success { stroke:#10a993; }
     .edge-error { stroke:#e55064; }
+    .edge-warning { stroke:#e9a02d; }
     .edge-cancelled { stroke:#8f99aa; }
     .flow-signal, .response-signal { stroke:#fff; stroke-width:1.7; }
     .signal-pending { fill:#7040df; }
     .signal-success { fill:#0caa91; }
     .signal-error { fill:#e34b61; }
+    .signal-warning { fill:#e9a02d; }
     .signal-cancelled { fill:#8b95a7; }
     .flow-node { stroke-width:1.2; transition:.2s ease; }
     .flow-node-core { fill:#fff; stroke:#dce2eb; }
@@ -462,12 +485,19 @@ export class ApiFlowComponent implements OnInit, OnDestroy {
   selectedEvent: ApiFlowEvent | null = null;
   message = '';
   now = Date.now();
+  streamState: ApiFlowStreamState = {
+    status: 'disconnected',
+    receivedEvents: 0,
+    reconnectAttempts: 0,
+    lastEventAt: null,
+    errorMessage: null,
+  };
 
   private readonly subscriptions = new Subscription();
 
   readonly fixedNodes: ApiFlowNode[] = [
-    { id: 'frontend', label: 'Angular UI', subtitle: 'Browser interaction', x: 42, y: 330, width: 150, height: 70, type: 'source' },
-    { id: 'http-client', label: 'HttpClient', subtitle: 'Global interceptor', x: 235, y: 330, width: 150, height: 70, type: 'source' },
+    { id: 'frontend', label: 'API Clients', subtitle: 'Angular · curl · Postman', x: 42, y: 330, width: 150, height: 70, type: 'source' },
+    { id: 'http-client', label: 'HTTP Transfer', subtitle: 'Local · remote · load test', x: 235, y: 330, width: 150, height: 70, type: 'source' },
     { id: 'fastapi', label: 'FastAPI Gateway', subtitle: 'Auth · CORS · routing', x: 430, y: 330, width: 160, height: 70, type: 'gateway' },
   ];
 
@@ -505,11 +535,22 @@ export class ApiFlowComponent implements OnInit, OnDestroy {
 
   constructor(
     private readonly flowService: ApiFlowService,
+    private readonly liveStream: ApiFlowLiveStreamService,
     private readonly apiService: ApiService,
     private readonly cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
+    this.subscriptions.add(
+      this.liveStream.state$.subscribe((state) => {
+        this.streamState = state;
+        if (state.status === 'error' && state.errorMessage) {
+          this.message = `Live API stream: ${state.errorMessage}`;
+        }
+        this.cdr.detectChanges();
+      })
+    );
+
     this.subscriptions.add(
       this.flowService.events$.subscribe((events) => {
         this.events = events;
@@ -639,6 +680,11 @@ export class ApiFlowComponent implements OnInit, OnDestroy {
     });
   }
 
+  restartStream(): void {
+    this.message = 'Reconnecting to the FastAPI live event stream.';
+    this.liveStream.restart();
+  }
+
   togglePaused(): void {
     this.paused = !this.paused;
   }
@@ -741,6 +787,7 @@ export class ApiFlowComponent implements OnInit, OnDestroy {
       'border-[#ddd3f7] bg-[#fbf9ff]': event.phase === 'pending',
       'border-[#d9eee9] bg-[#f8fffd]': event.phase === 'success',
       'border-[#f3d6db] bg-[#fff9fa]': event.phase === 'error',
+      'border-[#f6dfb8] bg-[#fffaf1]': event.phase === 'warning',
       'border-[#e4e7ed] bg-white': event.phase === 'cancelled',
     };
   }
@@ -758,6 +805,7 @@ export class ApiFlowComponent implements OnInit, OnDestroy {
     if (event.phase === 'pending') return 'bg-[#efe9ff] text-[#7041d6]';
     if (event.phase === 'success') return 'bg-[#e8faf5] text-[#138b76]';
     if (event.phase === 'error') return 'bg-[#fff0f2] text-[#cf4054]';
+    if (event.phase === 'warning') return 'bg-[#fff5df] text-[#a76708]';
     return 'bg-[#f0f2f5] text-[#6f798a]';
   }
 

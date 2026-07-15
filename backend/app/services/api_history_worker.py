@@ -8,14 +8,21 @@ from typing import Any
 
 from app.core.config import Settings
 from app.repositories import ApiHistoryRepository
+from app.services.live_api_events import LiveApiEventHub
 
 logger = logging.getLogger(__name__)
 
 
 class ApiHistoryWorker:
-    def __init__(self, repository: ApiHistoryRepository, settings: Settings) -> None:
+    def __init__(
+        self,
+        repository: ApiHistoryRepository,
+        settings: Settings,
+        event_hub: LiveApiEventHub | None = None,
+    ) -> None:
         self.repository = repository
         self.settings = settings
+        self.event_hub = event_hub
         self.worker_id = f"{socket.gethostname()}-{id(self)}"
         self.queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(
             maxsize=settings.telemetry_queue_max_size
@@ -41,10 +48,30 @@ class ApiHistoryWorker:
                     pass
 
     def submit(self, event: dict[str, Any]) -> bool:
+        request_data = event.get("request", {})
+        request_id = request_data.get("request_id")
         if not self.repository.database.available:
+            if self.event_hub and request_id:
+                self.event_hub.publish({
+                    "event_type": "history_skipped",
+                    "request_id": request_id,
+                    "method": request_data.get("http_method"),
+                    "path": request_data.get("route"),
+                    "phase": "warning",
+                    "error_message": "Database unavailable; request history was not queued",
+                })
             return False
         try:
             self.queue.put_nowait(event)
+            if self.event_hub and request_id:
+                self.event_hub.publish({
+                    "event_type": "history_queued",
+                    "request_id": request_id,
+                    "method": request_data.get("http_method"),
+                    "path": request_data.get("route"),
+                    "phase": "pending",
+                    "backend_id": request_data.get("final_backend_id"),
+                })
             return True
         except asyncio.QueueFull:
             self.dropped_events += 1
@@ -102,8 +129,32 @@ class ApiHistoryWorker:
                 await self.repository.save_and_complete(
                     str(job["id"]), self.worker_id, payload
                 )
+                if self.event_hub:
+                    request_data = payload.get("request", {})
+                    self.event_hub.publish({
+                        "event_type": "history_saved",
+                        "request_id": request_data.get("request_id"),
+                        "method": request_data.get("http_method"),
+                        "path": request_data.get("route"),
+                        "phase": "success",
+                        "backend_id": request_data.get("final_backend_id"),
+                        "persisted": True,
+                    })
             except Exception as exc:
                 logger.exception("Failed to persist API history job %s", job["id"])
+                if self.event_hub:
+                    request_data = payload.get("request", {}) if isinstance(payload, dict) else {}
+                    self.event_hub.publish({
+                        "event_type": "history_failed",
+                        "request_id": request_data.get("request_id"),
+                        "method": request_data.get("http_method"),
+                        "path": request_data.get("route"),
+                        "phase": "warning",
+                        "backend_id": request_data.get("final_backend_id"),
+                        "persisted": False,
+                        "error_type": type(exc).__name__,
+                        "error_message": str(exc),
+                    })
                 try:
                     await self.repository.fail(str(job["id"]), self.worker_id, exc)
                 except Exception:

@@ -42,6 +42,11 @@ class Settings:
 
     load_test_target_url: str = "http://localhost:8080/api/demo"
 
+    live_api_events_enabled: bool = True
+    live_api_event_history_size: int = 10000
+    live_api_subscriber_queue_size: int = 10000
+    live_api_keepalive_seconds: int = 15
+
     @classmethod
     def from_env(cls) -> "Settings":
         def bool_env(name: str, default: bool) -> bool:
@@ -95,6 +100,10 @@ class Settings:
             telemetry_flush_interval_ms=int(os.getenv("TELEMETRY_FLUSH_INTERVAL_MS", "500")),
             telemetry_lock_timeout_seconds=int(os.getenv("TELEMETRY_LOCK_TIMEOUT_SECONDS", "300")),
             load_test_target_url=os.getenv("LOAD_TEST_TARGET_URL", "http://localhost:8080/api/demo"),
+            live_api_events_enabled=bool_env("LIVE_API_EVENTS_ENABLED", True),
+            live_api_event_history_size=int(os.getenv("LIVE_API_EVENT_HISTORY_SIZE", "10000")),
+            live_api_subscriber_queue_size=int(os.getenv("LIVE_API_SUBSCRIBER_QUEUE_SIZE", "10000")),
+            live_api_keepalive_seconds=int(os.getenv("LIVE_API_KEEPALIVE_SECONDS", "15")),
         )
 
 

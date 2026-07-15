@@ -12,6 +12,7 @@ from app.api.proxy import router as proxy_router
 from app.container import Container
 from app.core.config import Settings, get_settings
 from app.core.logging import configure_logging
+from app.middleware.api_event_middleware import ApiEventMiddleware
 
 
 def create_app(
@@ -60,6 +61,7 @@ def create_app(
         lifespan=lifespan,
     )
     app.state.container = container
+    app.add_middleware(ApiEventMiddleware, event_hub=container.live_api_events)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(settings.cors_origins),
@@ -71,6 +73,12 @@ def create_app(
             "x-request-id",
             "x-correlation-id",
         ],
+        expose_headers=[
+            "x-selected-backend",
+            "x-request-id",
+            "x-correlation-id",
+            "x-rate-limit-remaining",
+        ],
     )
 
     @app.get("/healthz", tags=["platform"])
@@ -80,6 +88,7 @@ def create_app(
             "status": "ok" if not settings.database_required or database["available"] else "degraded",
             "database": database,
             "api_history_worker": container.api_history_worker.status(),
+            "live_api_events": container.live_api_events.status(),
         }
 
     app.include_router(control_router)

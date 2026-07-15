@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import asyncio
+import json
 import math
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi.encoders import jsonable_encoder
+from starlette.responses import StreamingResponse
 
 from app.core.security import require_admin_key
 from app.domain.backend import Backend
@@ -45,7 +49,102 @@ async def database_status(request: Request) -> dict:
     return {
         "database": await container.database.health(),
         "api_history_worker": container.api_history_worker.status(),
+        "live_api_events": container.live_api_events.status(),
     }
+
+
+@router.get("/events/recent")
+async def recent_api_events(
+    request: Request,
+    limit: int = Query(default=250, ge=0, le=5000),
+) -> dict:
+    hub = request.app.state.container.live_api_events
+    return {
+        "status": hub.status(),
+        "events": hub.recent(limit),
+    }
+
+
+def _encode_sse_event(event: dict) -> str:
+    """Encode one event safely for an SSE data frame.
+
+    jsonable_encoder handles UUID, datetime, Decimal, Enum, and other values
+    that may be emitted by database and proxy instrumentation.
+    """
+
+    payload = json.dumps(
+        jsonable_encoder(event),
+        separators=(",", ":"),
+        ensure_ascii=False,
+        default=str,
+    )
+    return f"event: api-flow\ndata: {payload}\n\n"
+
+
+@router.get("/events/stream")
+async def stream_api_events(
+    request: Request,
+    recent: int = Query(default=250, ge=0, le=2000),
+) -> StreamingResponse:
+    container = request.app.state.container
+    hub = container.live_api_events
+    keepalive = max(5, int(container.settings.live_api_keepalive_seconds))
+
+    async def event_stream():
+        # Send a frame immediately so the HTTP 200 response is flushed before
+        # waiting for the first live event.
+        yield "retry: 3000\n\n"
+        yield ": connected\n\n"
+
+        for event in hub.recent(recent):
+            try:
+                yield _encode_sse_event(event)
+            except Exception as exc:
+                # One malformed historical item must not terminate the stream.
+                yield _encode_sse_event({
+                    "event_type": "stream_encode_warning",
+                    "phase": "warning",
+                    "error_type": type(exc).__name__,
+                    "error_message": str(exc),
+                })
+
+        async with hub.subscribe() as queue:
+            while True:
+                if await request.is_disconnected():
+                    break
+
+                try:
+                    event = await asyncio.wait_for(
+                        queue.get(),
+                        timeout=keepalive,
+                    )
+                except (asyncio.TimeoutError, TimeoutError):
+                    yield ": keepalive\n\n"
+                    continue
+                except asyncio.CancelledError:
+                    break
+
+                try:
+                    yield _encode_sse_event(event)
+                except Exception as exc:
+                    yield _encode_sse_event({
+                        "event_type": "stream_encode_warning",
+                        "phase": "warning",
+                        "error_type": type(exc).__name__,
+                        "error_message": str(exc),
+                    })
+                finally:
+                    queue.task_done()
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-store, no-transform",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.get("/history/requests")

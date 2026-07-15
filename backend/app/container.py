@@ -17,6 +17,7 @@ from app.services.api_history_worker import ApiHistoryWorker
 from app.services.backend_validator import BackendURLValidator
 from app.services.health import HealthChecker
 from app.services.load_tester import LoadTester
+from app.services.live_api_events import LiveApiEventHub
 from app.services.metrics import MetricsStore
 from app.services.proxy import ProxyService
 from app.services.rate_limit import FixedWindowRateLimiter
@@ -36,6 +37,12 @@ class Container:
             timeout=timeout,
             transport=transport,
             follow_redirects=False,
+        )
+
+        self.live_api_events = LiveApiEventHub(
+            enabled=settings.live_api_events_enabled,
+            history_size=settings.live_api_event_history_size,
+            subscriber_queue_size=settings.live_api_subscriber_queue_size,
         )
 
         self.database = Database(settings)
@@ -62,6 +69,7 @@ class Container:
         self.api_history_worker = ApiHistoryWorker(
             self.history_repository,
             settings,
+            event_hub=self.live_api_events,
         )
         self.rate_limiter = FixedWindowRateLimiter(
             settings.rate_limit_requests,
@@ -80,5 +88,6 @@ class Container:
             metrics=self.metrics,
             settings=settings,
             history_worker=self.api_history_worker,
+            event_hub=self.live_api_events,
         )
         self.health = HealthChecker(self.registry, self.http_client, settings)

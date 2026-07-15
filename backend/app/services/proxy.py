@@ -13,6 +13,7 @@ from app.core.config import Settings
 from app.domain.errors import NoHealthyBackendError, RequestBodyTooLargeError
 from app.services.api_history_worker import ApiHistoryWorker
 from app.services.metrics import MetricsStore, RequestRecord
+from app.services.live_api_events import LiveApiEventHub
 from app.services.registry import BackendRegistry
 from app.services.router import TrafficRouter
 
@@ -33,6 +34,7 @@ class ProxyService:
         metrics: MetricsStore,
         settings: Settings,
         history_worker: ApiHistoryWorker | None = None,
+        event_hub: LiveApiEventHub | None = None,
     ) -> None:
         self.client = client
         self.registry = registry
@@ -40,6 +42,7 @@ class ProxyService:
         self.metrics = metrics
         self.settings = settings
         self.history_worker = history_worker
+        self.event_hub = event_hub
 
     async def forward(self, request: Request, path: str) -> StreamingResponse:
         if request.method == "CONNECT":
@@ -76,6 +79,26 @@ class ProxyService:
             await self.registry.acquire(backend.id)
             attempt_started_at = datetime.now(timezone.utc)
             attempt_started = time.perf_counter()
+            self._publish_event(
+                "backend_selected",
+                request=request,
+                request_id=request_id,
+                correlation_id=correlation_id,
+                backend_id=backend.id,
+                attempt_number=attempt_index + 1,
+                algorithm=self.router.algorithm_name.value,
+                phase="pending",
+            )
+            self._publish_event(
+                "attempt_started",
+                request=request,
+                request_id=request_id,
+                correlation_id=correlation_id,
+                backend_id=backend.id,
+                attempt_number=attempt_index + 1,
+                algorithm=self.router.algorithm_name.value,
+                phase="pending",
+            )
             try:
                 target = f"{backend.url}/{path.lstrip('/')}"
                 if request.url.query:
@@ -134,6 +157,20 @@ class ProxyService:
                             "error_message": str(stream_error) if stream_error else None,
                             "metadata": {},
                         })
+                        self._publish_event(
+                            "attempt_completed" if not is_error else "attempt_failed",
+                            request=request,
+                            request_id=request_id,
+                            correlation_id=correlation_id,
+                            backend_id=backend.id,
+                            attempt_number=attempt_index + 1,
+                            algorithm=self.router.algorithm_name.value,
+                            phase="error" if is_error else "success",
+                            status_code=upstream.status_code,
+                            duration_ms=round(attempt_duration, 3),
+                            error_type=type(stream_error).__name__ if stream_error else None,
+                            error_message=str(stream_error) if stream_error else None,
+                        )
                         error_text = (
                             f"{type(stream_error).__name__}: {stream_error}"
                             if stream_error else None
@@ -183,6 +220,20 @@ class ProxyService:
                     attempt_index, backend.id, attempt_started_at, completed_at,
                     duration, "request_body_too_large", exc, False,
                 ))
+                self._publish_event(
+                    "attempt_failed",
+                    request=request,
+                    request_id=request_id,
+                    correlation_id=correlation_id,
+                    backend_id=backend.id,
+                    attempt_number=attempt_index + 1,
+                    algorithm=self.router.algorithm_name.value,
+                    phase="error",
+                    status_code=413,
+                    duration_ms=round(duration, 3),
+                    error_type=type(exc).__name__,
+                    error_message=str(exc),
+                )
                 self._submit_history(
                     request=request,
                     request_id=request_id,
@@ -211,6 +262,31 @@ class ProxyService:
                     attempt_index, backend.id, attempt_started_at, completed_at,
                     duration, self._network_outcome(exc), exc, retry_scheduled,
                 ))
+                self._publish_event(
+                    "attempt_failed",
+                    request=request,
+                    request_id=request_id,
+                    correlation_id=correlation_id,
+                    backend_id=backend.id,
+                    attempt_number=attempt_index + 1,
+                    algorithm=self.router.algorithm_name.value,
+                    phase="warning" if retry_scheduled else "error",
+                    duration_ms=round(duration, 3),
+                    retry_scheduled=retry_scheduled,
+                    error_type=type(exc).__name__,
+                    error_message=str(exc),
+                )
+                if retry_scheduled:
+                    self._publish_event(
+                        "retry_scheduled",
+                        request=request,
+                        request_id=request_id,
+                        correlation_id=correlation_id,
+                        backend_id=backend.id,
+                        attempt_number=attempt_index + 2,
+                        algorithm=self.router.algorithm_name.value,
+                        phase="pending",
+                    )
                 if not retry_scheduled:
                     break
             except Exception as exc:
@@ -222,6 +298,19 @@ class ProxyService:
                     attempt_index, backend.id, attempt_started_at, completed_at,
                     duration, "internal_error", exc, False,
                 ))
+                self._publish_event(
+                    "attempt_failed",
+                    request=request,
+                    request_id=request_id,
+                    correlation_id=correlation_id,
+                    backend_id=backend.id,
+                    attempt_number=attempt_index + 1,
+                    algorithm=self.router.algorithm_name.value,
+                    phase="error",
+                    duration_ms=round(duration, 3),
+                    error_type=type(exc).__name__,
+                    error_message=str(exc),
+                )
                 break
 
         completed_at = datetime.now(timezone.utc)
@@ -238,6 +327,20 @@ class ProxyService:
             error=error_text,
             retry_count=max(0, len(attempted) - 1),
         ))
+        self._publish_event(
+            "backend_unavailable",
+            request=request,
+            request_id=request_id,
+            correlation_id=correlation_id,
+            backend_id=None,
+            attempt_number=len(attempts),
+            algorithm=self.router.algorithm_name.value,
+            phase="error",
+            status_code=503,
+            duration_ms=round(total_duration, 3),
+            error_type=type(last_error).__name__ if last_error else "NoHealthyBackendError",
+            error_message=error_text,
+        )
         self._submit_history(
             request=request,
             request_id=request_id,
@@ -305,6 +408,42 @@ class ProxyService:
                 "metadata": {},
             },
             "attempts": list(attempts),
+        })
+
+    def _publish_event(
+        self,
+        event_type: str,
+        *,
+        request: Request,
+        request_id: str,
+        correlation_id: str,
+        backend_id: str | None,
+        attempt_number: int | None,
+        algorithm: str | None,
+        phase: str,
+        status_code: int | None = None,
+        duration_ms: float | None = None,
+        retry_scheduled: bool | None = None,
+        error_type: str | None = None,
+        error_message: str | None = None,
+    ) -> None:
+        if self.event_hub is None:
+            return
+        self.event_hub.publish({
+            "event_type": event_type,
+            "request_id": request_id,
+            "correlation_id": correlation_id,
+            "method": request.method,
+            "path": request.url.path,
+            "phase": phase,
+            "backend_id": backend_id,
+            "attempt_number": attempt_number,
+            "algorithm": algorithm,
+            "status_code": status_code,
+            "duration_ms": duration_ms,
+            "retry_scheduled": retry_scheduled,
+            "error_type": error_type,
+            "error_message": error_message,
         })
 
     def _failed_attempt(

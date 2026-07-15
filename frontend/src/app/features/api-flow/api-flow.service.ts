@@ -3,7 +3,10 @@ import { BehaviorSubject } from 'rxjs';
 import {
   ApiFlowCategory,
   ApiFlowEvent,
+  ApiFlowPhase,
+  ApiFlowSource,
   ApiFlowTarget,
+  BackendApiFlowEvent,
 } from './api-flow.models';
 
 interface RouteDescriptor {
@@ -15,60 +18,175 @@ interface RouteDescriptor {
 
 @Injectable({ providedIn: 'root' })
 export class ApiFlowService {
-  private readonly maxEvents = 160;
+  private readonly maxEvents = 2_000;
   private readonly eventsSubject = new BehaviorSubject<ApiFlowEvent[]>([]);
 
   readonly events$ = this.eventsSubject.asObservable();
 
-  beginRequest(method: string, url: string): string {
+  createRequestId(): string {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+    return `flow-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }
+
+  beginRequest(method: string, url: string, requestId = this.createRequestId()): string {
     const path = this.extractPath(url);
     const descriptor = this.describePath(path);
-    const event: ApiFlowEvent = {
-      id: this.createId(),
+    const existing = this.findByRequestId(requestId);
+
+    if (existing) {
+      this.patchByRequestId(requestId, {
+        method: method.toUpperCase(),
+        url,
+        path,
+        category: descriptor.category,
+        categoryLabel: descriptor.categoryLabel,
+        target: descriptor.target,
+        targetLabel: descriptor.targetLabel,
+        source: 'browser',
+        lifecycleStage: 'browser_request_started',
+      });
+      return existing.id;
+    }
+
+    const event = this.createEvent({
+      requestId,
+      correlationId: null,
       method: method.toUpperCase(),
       url,
       path,
-      category: descriptor.category,
-      categoryLabel: descriptor.categoryLabel,
-      target: descriptor.target,
-      targetLabel: descriptor.targetLabel,
-      phase: 'pending',
-      statusCode: null,
+      descriptor,
+      source: 'browser',
+      clientName: 'Angular HttpClient',
       startedAt: Date.now(),
-      completedAt: null,
-      durationMs: null,
-      selectedBackend: null,
-      errorMessage: null,
-    };
+      lifecycleStage: 'browser_request_started',
+    });
 
-    this.eventsSubject.next([event, ...this.eventsSubject.value].slice(0, this.maxEvents));
+    this.prepend(event);
     return event.id;
   }
 
   completeRequest(id: string, statusCode: number, selectedBackend: string | null): void {
-    this.updateEvent(id, {
+    this.patchById(id, {
       phase: statusCode >= 400 ? 'error' : 'success',
       statusCode,
       selectedBackend,
       completedAt: Date.now(),
+      lifecycleStage: 'browser_response_received',
     });
   }
 
   failRequest(id: string, statusCode: number | null, message: string): void {
-    this.updateEvent(id, {
+    this.patchById(id, {
       phase: 'error',
       statusCode,
       errorMessage: message,
       completedAt: Date.now(),
+      lifecycleStage: 'browser_request_failed',
     });
   }
 
   cancelRequest(id: string): void {
-    this.updateEvent(id, {
+    this.patchById(id, {
       phase: 'cancelled',
       errorMessage: 'Request was cancelled before a response was received.',
       completedAt: Date.now(),
+      lifecycleStage: 'browser_request_cancelled',
     });
+  }
+
+  ingestBackendEvent(raw: BackendApiFlowEvent): void {
+    const requestId = raw.request_id?.trim();
+    if (!requestId) return;
+
+    const path = raw.path || '/';
+    const descriptor = this.describePath(path);
+    const eventType = raw.event_type || 'unknown';
+    const existing = this.findByRequestId(requestId);
+    const timestamp = this.parseTimestamp(raw.timestamp) ?? Date.now();
+
+    if (!existing) {
+      this.prepend(
+        this.createEvent({
+          requestId,
+          correlationId: raw.correlation_id || null,
+          method: (raw.method || 'GET').toUpperCase(),
+          url: path,
+          path,
+          descriptor,
+          source: 'external',
+          clientName: raw.client_name || 'External API client',
+          startedAt: timestamp,
+          lifecycleStage: eventType,
+          lastSequence: raw.sequence ?? null,
+        })
+      );
+    }
+
+    const current = this.findByRequestId(requestId);
+    if (!current) return;
+
+    // Ignore replayed or out-of-order lifecycle messages already applied.
+    if (
+      raw.sequence !== undefined &&
+      current.lastSequence !== null &&
+      raw.sequence <= current.lastSequence
+    ) {
+      return;
+    }
+
+    const patch: Partial<ApiFlowEvent> = {
+      correlationId: raw.correlation_id || current.correlationId,
+      method: (raw.method || current.method).toUpperCase(),
+      path,
+      url: path,
+      category: descriptor.category,
+      categoryLabel: descriptor.categoryLabel,
+      target: descriptor.target,
+      targetLabel: descriptor.targetLabel,
+      clientName: raw.client_name || current.clientName,
+      lifecycleStage: eventType,
+      lastSequence: raw.sequence ?? current.lastSequence,
+      algorithm: raw.algorithm || current.algorithm,
+      selectedBackend: raw.backend_id || current.selectedBackend,
+      attemptNumber: raw.attempt_number ?? current.attemptNumber,
+      statusCode: raw.status_code ?? current.statusCode,
+      errorMessage: raw.error_message || current.errorMessage,
+    };
+
+    if (raw.attempt_number && raw.attempt_number > 1) {
+      patch.retryCount = Math.max(current.retryCount, raw.attempt_number - 1);
+    }
+    if (eventType === 'retry_scheduled') {
+      patch.retryCount = Math.max(current.retryCount + 1, (raw.attempt_number || 1) - 1);
+      patch.phase = 'pending';
+    }
+    if (eventType === 'backend_selected' || eventType === 'attempt_started') {
+      patch.phase = 'pending';
+    }
+    if (eventType === 'attempt_failed') {
+      patch.phase = raw.retry_scheduled ? 'warning' : current.phase;
+    }
+    if (eventType === 'history_queued') {
+      patch.persisted = false;
+    }
+    if (eventType === 'history_saved') {
+      patch.persisted = true;
+    }
+    if (eventType === 'history_failed' || eventType === 'history_skipped') {
+      patch.persisted = false;
+    }
+    if (eventType === 'request_completed' || eventType === 'request_failed') {
+      const statusCode = raw.status_code ?? current.statusCode;
+      patch.phase = this.finalPhase(raw.phase, statusCode);
+      patch.completedAt = timestamp;
+      patch.durationMs = raw.duration_ms ?? Math.max(0, timestamp - current.startedAt);
+    } else if (raw.duration_ms !== undefined && raw.duration_ms !== null) {
+      patch.durationMs = raw.duration_ms;
+    }
+
+    this.patchByRequestId(requestId, patch, false);
   }
 
   clear(): void {
@@ -79,20 +197,99 @@ export class ApiFlowService {
     return this.eventsSubject.value;
   }
 
-  private updateEvent(
-    id: string,
-    patch: Partial<Pick<ApiFlowEvent, 'phase' | 'statusCode' | 'selectedBackend' | 'errorMessage' | 'completedAt'>>
+  private createEvent(input: {
+    requestId: string;
+    correlationId: string | null;
+    method: string;
+    url: string;
+    path: string;
+    descriptor: RouteDescriptor;
+    source: ApiFlowSource;
+    clientName: string | null;
+    startedAt: number;
+    lifecycleStage: string;
+    lastSequence?: number | null;
+  }): ApiFlowEvent {
+    return {
+      id: input.requestId,
+      requestId: input.requestId,
+      correlationId: input.correlationId,
+      method: input.method,
+      url: input.url,
+      path: input.path,
+      category: input.descriptor.category,
+      categoryLabel: input.descriptor.categoryLabel,
+      target: input.descriptor.target,
+      targetLabel: input.descriptor.targetLabel,
+      phase: 'pending',
+      statusCode: null,
+      startedAt: input.startedAt,
+      completedAt: null,
+      durationMs: null,
+      selectedBackend: null,
+      errorMessage: null,
+      source: input.source,
+      clientName: input.clientName,
+      lifecycleStage: input.lifecycleStage,
+      attemptNumber: null,
+      retryCount: 0,
+      algorithm: null,
+      persisted: null,
+      lastSequence: input.lastSequence ?? null,
+    };
+  }
+
+  private prepend(event: ApiFlowEvent): void {
+    const withoutDuplicate = this.eventsSubject.value.filter(
+      (item) => item.requestId !== event.requestId
+    );
+    this.eventsSubject.next([event, ...withoutDuplicate].slice(0, this.maxEvents));
+  }
+
+  private findByRequestId(requestId: string): ApiFlowEvent | undefined {
+    return this.eventsSubject.value.find((event) => event.requestId === requestId);
+  }
+
+  private patchById(id: string, patch: Partial<ApiFlowEvent>): void {
+    const event = this.eventsSubject.value.find((item) => item.id === id);
+    if (!event) return;
+    this.patchByRequestId(event.requestId, patch);
+  }
+
+  private patchByRequestId(
+    requestId: string,
+    patch: Partial<ApiFlowEvent>,
+    calculateDuration = true
   ): void {
-    const now = patch.completedAt ?? Date.now();
+    let updated: ApiFlowEvent | null = null;
     const next = this.eventsSubject.value.map((event) => {
-      if (event.id !== id) return event;
-      return {
+      if (event.requestId !== requestId) return event;
+      const completedAt = patch.completedAt ?? event.completedAt;
+      updated = {
         ...event,
         ...patch,
-        durationMs: Math.max(0, now - event.startedAt),
+        durationMs:
+          patch.durationMs !== undefined
+            ? patch.durationMs
+            : calculateDuration && completedAt !== null
+              ? Math.max(0, completedAt - event.startedAt)
+              : event.durationMs,
       };
+      return updated;
     });
-    this.eventsSubject.next(next);
+
+    if (updated) {
+      // Move the changed request to the top without duplicating it.
+      this.eventsSubject.next([
+        updated,
+        ...next.filter((event) => event.requestId !== requestId),
+      ].slice(0, this.maxEvents));
+    }
+  }
+
+  private finalPhase(rawPhase: string | null | undefined, statusCode: number | null): ApiFlowPhase {
+    if (rawPhase === 'error' || (statusCode !== null && statusCode >= 400)) return 'error';
+    return 'success';
   }
 
   private describePath(path: string): RouteDescriptor {
@@ -163,10 +360,9 @@ export class ApiFlowService {
     }
   }
 
-  private createId(): string {
-    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-      return crypto.randomUUID();
-    }
-    return `flow-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  private parseTimestamp(value: string | undefined): number | null {
+    if (!value) return null;
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : null;
   }
 }
