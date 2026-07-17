@@ -1,0 +1,114 @@
+flowchart LR
+    subgraph Clients["API Clients"]
+        C1[Angular Dashboard]
+        C2[cURL]
+        C3[Postman]
+        C4[Load Testing Tool]
+        C5[External Client]
+    end
+
+    subgraph Gateway["LoadFlow FastAPI Gateway"]
+        G1[CORS and Security Middleware]
+        G2[Request ID and API Event Middleware]
+        G3[Control API Router]
+        G4[Catch-All Proxy Router]
+        G5[Routing Engine]
+        G6[Retry and Failover Manager]
+        G7[Health Check Service]
+        G8[Live API Event Hub]
+        G9[History Persistence Worker]
+    end
+
+    subgraph Algorithms["Load-Balancing Algorithms"]
+        A1[Round Robin]
+        A2[Smooth Weighted Round Robin]
+        A3[Least Connections - Planned]
+        A4[Least Response Time - Planned]
+    end
+
+    subgraph Backends["Simulated Backend Services"]
+        B1[backend-fast]
+        B2[backend-slow]
+        B3[backend-unstable]
+        B4[backend-failure]
+    end
+
+    subgraph Persistence["Supabase PostgreSQL"]
+        P1[Request History]
+        P2[Request Attempts]
+        P3[Backend Health History]
+        P4[Routing Configuration]
+        P5[System and Security Events]
+        P6[Load-Test Results]
+    end
+
+    subgraph Observability["Real-Time Observability"]
+        O1[SSE Event Stream]
+        O2[Angular API Request Topology]
+        O3[Metrics Dashboard]
+        O4[Logs and Request History]
+    end
+
+    C1 --> G1
+    C2 --> G1
+    C3 --> G1
+    C4 --> G1
+    C5 --> G1
+
+    G1 --> G2
+    G2 --> G3
+    G2 --> G4
+
+    G3 --> O1
+    G3 --> P4
+
+    G4 --> G5
+    G5 --> A1
+    G5 --> A2
+    G5 -. future .-> A3
+    G5 -. future .-> A4
+
+    A1 --> G6
+    A2 --> G6
+    A3 -. future .-> G6
+    A4 -. future .-> G6
+
+    G6 --> B1
+    G6 --> B2
+    G6 --> B3
+    G6 --> B4
+
+    B1 --> G6
+    B2 --> G6
+    B3 --> G6
+    B4 --> G6
+
+    G7 --> B1
+    G7 --> B2
+    G7 --> B3
+    G7 --> B4
+
+    G7 --> P3
+    G6 --> G9
+    G2 --> G8
+    G5 --> G8
+    G6 --> G8
+    G9 --> P1
+    G9 --> P2
+    G9 --> P5
+    G9 --> P6
+
+    G8 --> O1
+    O1 --> O2
+    P1 --> O3
+    P2 --> O3
+    P3 --> O3
+    P1 --> O4
+    P5 --> O4
+
+    G6 --> G2
+    G2 --> C1
+    G2 --> C2
+    G2 --> C3
+    G2 --> C4
+    G2 --> C5
