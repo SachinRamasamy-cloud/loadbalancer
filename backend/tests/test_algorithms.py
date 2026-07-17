@@ -4,44 +4,86 @@ import pytest
 
 from app.domain.backend import Backend
 from app.domain.enums import BackendStatus
-from app.services.algorithms.least_inflight import LeastInflight
-from app.services.algorithms.round_robin import RoundRobin
-from app.services.algorithms.smooth_weighted import SmoothWeightedRoundRobin
+from app.services.algorithms.smooth_weighted import (
+    SmoothWeightedRoundRobin,
+)
 
 
-def backend(identifier: str, *, weight: int = 1, active: int = 0) -> Backend:
+def create_backend(
+    identifier: str,
+    *,
+    weight: int,
+) -> Backend:
     return Backend(
         id=identifier,
         name=identifier,
         url=f"http://{identifier}.test",
         weight=weight,
-        active_requests=active,
         status=BackendStatus.HEALTHY,
     )
 
 
 @pytest.mark.asyncio
-async def test_round_robin_cycles_in_stable_order():
-    algorithm = RoundRobin()
-    values = [backend("b"), backend("a"), backend("c")]
-    selected = [(await algorithm.select(values)).id for _ in range(5)]
-    assert selected == ["a", "b", "c", "a", "b"]
-
-
-@pytest.mark.asyncio
-async def test_least_inflight_respects_weighted_capacity():
-    algorithm = LeastInflight()
-    selected = await algorithm.select([
-        backend("small", weight=1, active=2),
-        backend("large", weight=4, active=4),
-    ])
-    assert selected.id == "large"
-
-
-@pytest.mark.asyncio
-async def test_smooth_weighted_distribution():
+async def test_smooth_weighted_round_robin_distribution():
     algorithm = SmoothWeightedRoundRobin()
-    values = [backend("heavy", weight=3), backend("light", weight=1)]
-    selected = [(await algorithm.select(values)).id for _ in range(40)]
-    counts = Counter(selected)
-    assert counts == {"heavy": 30, "light": 10}
+
+    backends = [
+        create_backend("fast", weight=5),
+        create_backend("slow", weight=2),
+        create_backend("unstable", weight=1),
+    ]
+
+    selected_backend_ids = [
+        (await algorithm.select(backends)).id
+        for _ in range(80)
+    ]
+
+    counts = Counter(selected_backend_ids)
+
+    assert counts == {
+        "fast": 50,
+        "slow": 20,
+        "unstable": 10,
+    }
+
+
+@pytest.mark.asyncio
+async def test_weighted_round_robin_excludes_removed_backend():
+    algorithm = SmoothWeightedRoundRobin()
+
+    initial_backends = [
+        create_backend("fast", weight=5),
+        create_backend("slow", weight=2),
+    ]
+
+    for _ in range(10):
+        await algorithm.select(initial_backends)
+
+    remaining_backends = [
+        create_backend("fast", weight=5),
+    ]
+
+    selected = await algorithm.select(
+        remaining_backends
+    )
+
+    assert selected.id == "fast"
+
+    state = await algorithm.state()
+
+    assert "slow" not in state
+
+
+@pytest.mark.asyncio
+async def test_weighted_round_robin_rejects_invalid_weight():
+    algorithm = SmoothWeightedRoundRobin()
+
+    invalid_backend = create_backend(
+        "invalid",
+        weight=0,
+    )
+
+    with pytest.raises(ValueError):
+        await algorithm.select(
+            [invalid_backend]
+        )
