@@ -1,0 +1,27 @@
+flowchart TD
+    A[Incoming Client Request] --> B[FastAPI Gateway]
+    B --> C{Any Healthy Backends?}
+
+    C -- No --> D[Return 503 Service Unavailable]
+    C -- Yes --> E[Read Round Robin Pointer]
+
+    E --> F[Select Next Healthy Backend]
+    F --> G[Advance Pointer]
+    G --> H[Forward Request to Selected Backend]
+
+    H --> I{Backend Response Successful?}
+    I -- Yes --> J[Return Response to Client]
+    I -- No --> K{Retry Attempts Remaining?}
+
+    K -- No --> L[Return Final Error Response]
+    K -- Yes --> M[Exclude Failed Backend]
+    M --> N{Another Healthy Backend Available?}
+
+    N -- No --> L
+    N -- Yes --> F
+
+    J --> O[Record Request Metrics]
+    L --> O
+    O --> P[Persist Request History in Supabase]
+    P --> Q[Publish Live API Lifecycle Event]
+    Q --> R[Update Angular Observability Dashboard]

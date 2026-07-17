@@ -1,0 +1,36 @@
+flowchart TD
+    A[Incoming Client Request] --> B[FastAPI Gateway]
+    B --> C[Fetch Healthy and Enabled Backends]
+    C --> D{Any Eligible Backends?}
+
+    D -- No --> E[Return 503 Service Unavailable]
+    D -- Yes --> F[Load Static Backend Weights]
+
+    F --> G[Add Static Weight to Each Current Score]
+    G --> H[Select Backend with Highest Current Score]
+    H --> I[Subtract Total Active Weight from Selected Backend Score]
+    I --> J[Forward Request to Selected Backend]
+
+    J --> K{Backend Response Successful?}
+    K -- Yes --> L[Return Response to Client]
+    K -- No --> M{Retry Attempts Remaining?}
+
+    M -- No --> N[Return Final Error Response]
+    M -- Yes --> O[Exclude Failed Backend]
+    O --> P{Another Eligible Backend Available?}
+
+    P -- No --> N
+    P -- Yes --> C
+
+    L --> Q[Record Selected Backend and Weight]
+    N --> Q
+    Q --> R[Persist Request and Attempt Data in Supabase]
+    R --> S[Publish Live Request Lifecycle Events]
+    S --> T[Update Real-Time API Request Topology]
+
+    U[Example Weights] --> U1[Fast Backend: 5]
+    U --> U2[Slow Backend: 2]
+    U --> U3[Unstable Backend: 1]
+    U1 --> V[Expected Long-Term Ratio: 5 to 2 to 1]
+    U2 --> V
+    U3 --> V
