@@ -1,0 +1,36 @@
+flowchart TD
+    A[Incoming Client Request] --> B[FastAPI Gateway]
+    B --> C[Get Healthy and Enabled Backends]
+
+    C --> D{Any Eligible Backend?}
+    D -- No --> E[Return 503 Service Unavailable]
+    D -- Yes --> F[Read active_requests and weight]
+
+    F --> G[Calculate active_requests divided by weight]
+    G --> H[Find Lowest Normalized Load]
+
+    H --> I{Multiple Backends Tied?}
+    I -- Yes --> J[Use Fair Round Robin Tie Break]
+    I -- No --> K[Select Lowest-Load Backend]
+    J --> K
+
+    K --> L[Atomically Increment active_requests]
+    L --> M[Forward Request to Backend]
+
+    M --> N{Request Successful?}
+    N -- Yes --> O[Stream Response to Client]
+    N -- No --> P{Retry Available?}
+
+    P -- Yes --> Q[Exclude Failed Backend]
+    Q --> C
+
+    P -- No --> R[Return Final Error]
+
+    O --> S[Response Stream Finished]
+    R --> S
+
+    S --> T[Decrement active_requests]
+    T --> U[Update Latency and Error Metrics]
+    U --> V[Persist Request History in Supabase]
+    V --> W[Publish SSE Lifecycle Event]
+    W --> X[Update Live API Request Topology]
