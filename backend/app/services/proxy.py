@@ -69,14 +69,16 @@ class ProxyService:
         max_attempts = 2 if request.method in SAFE_RETRY_METHODS else 1
         last_error: Exception | None = None
 
-        for attempt_index in range(max_attempts):
-            try:
-                backend = await self.router.select(attempted)
-            except NoHealthyBackendError:
-                break
+       for attempt_index in range(max_attempts):
+    try:
+        backend = await self.router.reserve(
+            attempted
+        )
+    except NoHealthyBackendError:
+        break
 
-            attempted.add(backend.id)
-            await self.registry.acquire(backend.id)
+    attempted.add(backend.id)
+            # await self.registry.acquire(backend.id)
             attempt_started_at = datetime.now(timezone.utc)
             attempt_started = time.perf_counter()
             self._publish_event(

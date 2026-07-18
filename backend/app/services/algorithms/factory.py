@@ -4,8 +4,12 @@ from app.domain.enums import AlgorithmName
 from app.services.algorithms.base import (
     LoadBalancingAlgorithm,
 )
-from app.services.algorithms.least_inflight import LeastInflight
-from app.services.algorithms.round_robin import RoundRobin
+from app.services.algorithms.least_inflight import (
+    LeastInflight,
+)
+from app.services.algorithms.round_robin import (
+    RoundRobin,
+)
 from app.services.algorithms.smooth_weighted import (
     SmoothWeightedRoundRobin,
 )
@@ -13,10 +17,10 @@ from app.services.algorithms.smooth_weighted import (
 
 class AlgorithmFactory:
     """
-    Creates and stores the load-balancing algorithm instances.
+    Stores one long-lived instance of every routing algorithm.
 
-    Instances are retained because Round Robin and Smooth Weighted
-    Round Robin maintain runtime selection state.
+    Stateful algorithms such as Round Robin and Smooth Weighted
+    Round Robin must not be recreated for every request.
     """
 
     def __init__(self) -> None:
@@ -24,7 +28,8 @@ class AlgorithmFactory:
             AlgorithmName,
             LoadBalancingAlgorithm,
         ] = {
-            AlgorithmName.ROUND_ROBIN: RoundRobin(),
+            AlgorithmName.ROUND_ROBIN:
+                RoundRobin(),
 
             AlgorithmName.SMOOTH_WEIGHTED_ROUND_ROBIN:
                 SmoothWeightedRoundRobin(),
@@ -41,5 +46,6 @@ class AlgorithmFactory:
             return self._instances[name]
         except KeyError as exc:
             raise ValueError(
-                f"Unsupported load-balancing algorithm: {name}"
+                "Unsupported load-balancing algorithm: "
+                f"{name}"
             ) from exc
