@@ -166,9 +166,8 @@ Each request can expose:
 
 The live event stream is implemented using Server-Sent Events.
 
-![Real-Time API Request Topology](frontend/public/net.png)
+![Real-Time API Request Topology](docs/net.png)
 
-> This README is stored in the repository root, so the correct GitHub image path is `frontend/public/net.png`. If the README is moved into the `frontend` directory, use `public/net.png`.
 
 ---
 
